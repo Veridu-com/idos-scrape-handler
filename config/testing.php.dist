@@ -1,0 +1,23 @@
+<?php
+/*
+ * Copyright (c) 2012-2016 Veridu Ltd <https://veridu.com>
+ * All rights reserved.
+ */
+
+declare(strict_types=1);
+
+$appSettings = [
+    'debug'                             => false,
+    'displayErrorDetails'               => false,
+    'determineRouteBeforeAppMiddleware' => true,
+    'log'                               => [
+        'path'  => sprintf('%s/../log/testing-%04d%02d%02d.log', __DIR__, date('Y'), date('m'), date('d')),
+        'level' => Monolog\Logger::DEBUG
+    ],
+    'gearman'                           => [
+        'timeout' => 1000,
+        'servers' => [
+            ['localhost', 4730]
+        ]
+    ]
+];
