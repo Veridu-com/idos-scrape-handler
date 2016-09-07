@@ -25,17 +25,20 @@ class Profile extends AbstractHandlerThread {
             $this->rawBuffer = $this->service->request('/account/verify_credentials.json?include_entities=true&skip_status=false');
         } catch (\Exception $exception) {
             $this->logger->error($exception->getMessage());
+
             return;
         }
 
         $this->parsedBuffer = json_decode($this->rawBuffer, true);
         if (empty($this->parsedBuffer)) {
             $this->lastError = 'Unknown error!';
+
             return;
         }
 
         if (isset($this->parsedBuffer['errors'])) {
             $this->lastError = $this->parsedBuffer['errors'][0]['message'];
+
             return;
         }
 

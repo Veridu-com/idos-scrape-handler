@@ -66,7 +66,7 @@ class Daemon extends Command {
                 $logger->debug(sprintf('Adding Gearman Server: %s', $server));
                 $gearman->addServer($server);
             } else {
-                $server = explode(':', $server);
+                $server    = explode(':', $server);
                 $server[1] = intval($server[1]);
                 $logger->debug(sprintf('Adding Gearman Server: %s:%d', $server[0], $server[1]));
                 $gearman->addServer($server[0], $server[1]);
