@@ -25,17 +25,20 @@ class Profile extends AbstractHandlerThread {
             $this->rawBuffer = $this->service->request('/me');
         } catch (\Exception $exception) {
             $this->logger->error($exception->getMessage());
+
             return;
         }
 
         $this->parsedBuffer = json_decode($this->rawBuffer, true);
         if (empty($this->parsedBuffer)) {
             $this->lastError = 'Unknown error!';
+
             return;
         }
 
         if (isset($this->parsedBuffer['error'])) {
             $this->lastError = $this->parsedBuffer['error_description'];
+
             return;
         }
 

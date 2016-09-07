@@ -25,17 +25,20 @@ class Profile extends AbstractHandlerThread {
             $this->rawBuffer = $this->service->request('/me?fields=id,first_name,last_name,gender,locale,languages,age_range,verified,birthday,education,email,hometown,location,picture.width(1024).height(1024),relationship_status,significant_other,work,friends');
         } catch (\Exception $exception) {
             $this->logger->error($exception->getMessage());
+
             return;
         }
 
         $this->parsedBuffer = json_decode($this->rawBuffer, true);
         if (empty($this->parsedBuffer)) {
             $this->lastError = 'Unknown error!';
+
             return;
         }
 
         if (isset($this->parsedBuffer['error'])) {
             $this->lastError = $this->parsedBuffer['error']['message'];
+
             return;
         }
 
