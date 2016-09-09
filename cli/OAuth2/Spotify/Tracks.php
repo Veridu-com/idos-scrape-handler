@@ -8,7 +8,9 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Spotify;
 
-class Tracks extends \Thread {
+use Cli\Handler\AbstractHandlerThread;
+
+class Tracks extends AbstractHandlerThread {
     public function run() {
     }
 }

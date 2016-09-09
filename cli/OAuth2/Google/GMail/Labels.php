@@ -8,7 +8,9 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Google\GMail;
 
-class Labels extends \Thread {
+use Cli\Handler\AbstractHandlerThread;
+
+class Labels extends AbstractHandlerThread {
     public function run() {
     }
 }

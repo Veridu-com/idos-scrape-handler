@@ -96,6 +96,10 @@ class Scrape implements ControllerInterface {
     public function scheduleJob(ServerRequestInterface $request, ResponseInterface $response) : ResponseInterface {
         $command = $this->commandFactory->create('Job');
         $command->setParameters($request->getParsedBody());
+        $command
+            ->setParameter('appKey', 'XXX')
+            ->setParameter('appSecret', 'XXX')
+            ->setParameter('apiVersion', '1.0.0');
         $this->commandBus->handle($command);
 
         $command = $this->commandFactory->create('ResponseDispatch');

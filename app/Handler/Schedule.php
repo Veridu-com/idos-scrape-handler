@@ -109,20 +109,11 @@ class Schedule implements HandlerInterface {
 
         $this->emitter->emit(new JobReceived($command));
 
-        // // Job Scheduling
-        // if (! $this->gearman->addTaskBackground('XXXX', $payload)) {
-        //     $this->emitter->emit(new ScheduleFailed($command));
-        //     return;
-        // }
-
-        // // Job Execution
-        // if (! $this->gearman->runTasks()) {
-        //     $this->emitter->emit(new ExecuteFailed($command));
-        //     return;
-        // }
-
         // Job Scheduling
-        $task = $this->gearman->doBackground('XXXX', $payload);
+        $task = $this->gearman->doBackground(
+            'scrape',
+            json_encode($command)
+        );
         if ($this->gearman->returnCode() === \GEARMAN_SUCCESS) {
             $this->emitter->emit(new JobScheduled($command));
 

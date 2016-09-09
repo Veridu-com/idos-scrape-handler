@@ -8,7 +8,9 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Facebook;
 
-class Photos extends \Thread {
+use Cli\Handler\AbstractHandlerThread;
+
+class Photos extends AbstractHandlerThread {
     public function run() {
     }
 }

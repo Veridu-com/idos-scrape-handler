@@ -8,7 +8,9 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Google;
 
-class Contacts extends \Thread {
+use Cli\Handler\AbstractHandlerThread;
+
+class Contacts extends AbstractHandlerThread {
     public function run() {
     }
 }

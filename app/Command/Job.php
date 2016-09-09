@@ -13,38 +13,98 @@ namespace App\Command;
  */
 class Job extends AbstractCommand {
     /**
-     * Attribute's user.
-     *
-     * @var App\Entity\User
-     */
-    public $user;
-    /**
-     * New attribute name.
+     * Username.
      *
      * @var string
      */
-    public $name;
+    public $userName;
     /**
-     * New attribute value.
+     * Source Id.
+     *
+     * @var int
+     */
+    public $sourceId;
+    /**
+     * Credential's Public Key.
      *
      * @var string
      */
-    public $value;
+    public $pubKey;
+    /**
+     * Provider name.
+     *
+     * @var string
+     */
+    public $providerName;
+    /**
+     * Provider Access Token.
+     *
+     * @var string
+     */
+    public $accessToken;
+    /**
+     * Provider Token Secret.
+     *
+     * @var string
+     */
+    public $tokenSecret;
+    /**
+     * Application Key.
+     *
+     * @var string
+     */
+    public $appKey;
+    /**
+     * Application Secret.
+     *
+     * @var string
+     */
+    public $appSecret;
+    /**
+     * API Version.
+     *
+     * @var string
+     */
+    public $apiVersion;
 
     /**
      * {@inheritdoc}
      */
     public function setParameters(array $parameters) : self {
-        if (isset($parameters['user'])) {
-            $this->user = $parameters['user'];
+        if (isset($parameters['userName'])) {
+            $this->userName = $parameters['userName'];
         }
 
-        if (isset($parameters['name'])) {
-            $this->name = $parameters['name'];
+        if (isset($parameters['sourceId'])) {
+            $this->sourceId = $parameters['sourceId'];
         }
 
-        if (isset($parameters['value'])) {
-            $this->value = $parameters['value'];
+        if (isset($parameters['pubKey'])) {
+            $this->pubKey = $parameters['pubKey'];
+        }
+
+        if (isset($parameters['providerName'])) {
+            $this->providerName = $parameters['providerName'];
+        }
+
+        if (isset($parameters['accessToken'])) {
+            $this->accessToken = $parameters['accessToken'];
+        }
+
+        if (isset($parameters['tokenSecret'])) {
+            $this->tokenSecret = $parameters['tokenSecret'];
+        }
+
+        if (isset($parameters['appKey'])) {
+            $this->appKey = $parameters['appKey'];
+        }
+
+        if (isset($parameters['appSecret'])) {
+            $this->appSecret = $parameters['appSecret'];
+        }
+
+        if (isset($parameters['apiVersion'])) {
+            $this->apiVersion = $parameters['apiVersion'];
         }
 
         return $this;

@@ -202,19 +202,9 @@ $container['commandBus'] = function (ContainerInterface $container) : CommandBus
     $settings = $container->get('settings');
     $log      = $container->get('log');
 
-    $commandPaths = glob(__DIR__ . '/../app/Command/*/*.php');
-    $commands     = [];
-    foreach ($commandPaths as $commandPath) {
-        $matches = [];
-        preg_match_all('/.*Command\/(.*)\/(.*).php/', $commandPath, $matches);
-
-        $resource = $matches[1][0];
-        $command  = $matches[2][0];
-
-        $commands[sprintf('App\\Command\\%s\\%s', $resource, $command)] = sprintf('App\\Handler\\%s', $resource);
-    }
-
+    $commands                                  = [];
     $commands[Command\ResponseDispatch::class] = Handler\Response::class;
+    $commands[Command\Job::class]              = Handler\Schedule::class;
     $handlerMiddleware                         = new CommandHandlerMiddleware(
         new ClassNameExtractor(),
         new ContainerLocator(
@@ -303,7 +293,7 @@ $container['eventEmitter'] = function (ContainerInterface $container) : Emitter 
 };
 
 // Gearman Client
-$container['gearmanClient'] = function (CotainerInterface $container) : GearmanClient {
+$container['gearmanClient'] = function (ContainerInterface $container) : GearmanClient {
     $settings = $container->get('settings');
     $gearman  = new \GearmanClient();
     if (isset($settings['gearman']['timeout'])) {

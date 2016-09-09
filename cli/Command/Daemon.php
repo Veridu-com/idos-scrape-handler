@@ -15,7 +15,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Veridu\idOS\SDK;
+// use Veridu\idOS\SDK;
 
 /**
  * Command definition for Scraper Daemon.
@@ -30,11 +30,6 @@ class Daemon extends Command {
         $this
             ->setName('scrape:daemon')
             ->setDescription('idOS Scrape - Daemon')
-            ->addArgument(
-                'providerName',
-                InputArgument::REQUIRED,
-                'Provider name'
-            )
             ->addArgument(
                 'serverList',
                 InputArgument::REQUIRED | InputArgument::IS_ARRAY,
@@ -54,9 +49,6 @@ class Daemon extends Command {
         $logger = new Logger();
 
         $logger->debug('Initializing idOS Scrape Handler Daemon');
-
-        // Provider setup
-        $providerName = $input->getArgument('providerName');
 
         // Server List setup
         $servers = $input->getArgument('serverList');
@@ -80,32 +72,30 @@ class Daemon extends Command {
         // 1 second I/O timeout
         $gearman->setTimeout(1000);
 
-        // Scrape Handler Factory
-        $factory = new HandlerFactory(
-            new OAuthFactory(),
-            [
-                'Linkedin' => 'Cli\\Handler\\LinkedIn',
-                'Paypal'   => 'Cli\\Handler\\PayPal'
-            ]
-        );
-
-        if (! $factory->check($providerName)) {
-            throw new \RuntimeException(sprintf('Invalid provider "%s".', $providerName));
-        }
-
         // idOS SDK Factory
-        $sdkFactory = new SDK\Factory(
-            __HNDKEY__,
-            __HNDSEC__
-        );
+        $sdkFactory = new \stdClass();
+        $sdkFactory->create = function (string $pubKey) {
+            $thingy = new \stdClass();
+            $thingy->raw = new \stdClass();
+            $thingy->raw->createNew = function (
+                string $userName,
+                int $sourceId,
+                string $collection,
+                array $data
+            ) {
+                echo 'SDK CALLED', PHP_EOL;
+            };
+        };
+        // $sdkFactory = new SDK\Factory(
+        //     __HNDKEY__,
+        //     __HNDSEC__
+        // );
 
-        $functionName = sprintf('%s-scrape', strtolower($providerName));
-
-        $logger->debug(sprintf('Registering Worker Function "%s"', $functionName));
+        $logger->debug('Registering Worker Function "scrape"');
 
         $gearman->addFunction(
-            $functionName,
-            function (\GearmanJob $job) use ($logger, $factory, $providerName, $sdkFactory) {
+            'scrape',
+            function (\GearmanJob $job) use ($logger, $sdkFactory) {
                 $logger->debug('Got a new job!');
                 $jobData = json_decode($job->workload(), true);
                 if ($jobData === null) {
@@ -115,9 +105,28 @@ class Daemon extends Command {
                     return;
                 }
 
+                // Scrape Handler Factory
+                $factory = new HandlerFactory(
+                    new OAuthFactory(),
+                    [
+                        'Linkedin' => 'Cli\\Handler\\LinkedIn',
+                        'Paypal'   => 'Cli\\Handler\\PayPal'
+                    ]
+                );
+
+                // Checks if $jobData['providerName'] is a supported Data Provider
+                if (! $factory->check($jobData['providerName'])) {
+                    throw new \RuntimeException(
+                        sprintf(
+                            'Invalid provider "%s".',
+                            $jobData['providerName']
+                        )
+                    );
+                }
+
                 $provider = $factory->create(
                     $logger,
-                    $providerName,
+                    $jobData['providerName'],
                     isset($jobData['accessToken']) ? $jobData['accessToken'] : '',
                     isset($jobData['tokenSecret']) ? $jobData['tokenSecret'] : '',
                     isset($jobData['appKey']) ? $jobData['appKey'] : '',
@@ -136,7 +145,7 @@ class Daemon extends Command {
                             strlen($content)
                         )
                     );
-                    $sdk->raw()->createNew(
+                    $sdk->raw->createNew(
                         $jobData['userName'],
                         $jobData['sourceId'],
                         $collection,
@@ -149,13 +158,11 @@ class Daemon extends Command {
             }
         );
 
-        $functionName = sprintf('%s-ping', strtolower($providerName));
-
-        $logger->debug(sprintf('Registering Ping Function "%s"', $functionName));
+        $logger->debug('Registering Ping Function "ping"');
 
         // Register Thread's Ping Function
         $gearman->addFunction(
-            $functionName,
+            'ping',
             function (\GearmanJob $job) use ($logger) {
                 $logger->debug('Ping!');
 

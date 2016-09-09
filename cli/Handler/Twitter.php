@@ -22,9 +22,9 @@ class Twitter extends AbstractHandler {
      */
     protected function poolThreads() : array {
         return [
-            Profile::class,
             Followers::class,
             Friends::class,
+            Profile::class,
             Statuses::class
         ];
     }

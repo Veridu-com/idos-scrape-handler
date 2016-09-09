@@ -8,7 +8,9 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Google\GMail;
 
-class Messages extends \Thread {
+use Cli\Handler\AbstractHandlerThread;
+
+class Messages extends AbstractHandlerThread {
     public function run() {
     }
 }
