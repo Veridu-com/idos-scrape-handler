@@ -8,7 +8,6 @@ declare(strict_types = 1);
 
 namespace Cli\Handler;
 
-use Cli\Utils\Context;
 use Cli\Utils\Logger;
 use OAuth\Common\Service\ServiceInterface;
 

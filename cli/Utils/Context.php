@@ -49,7 +49,7 @@ class Context extends \Worker {
         $this->logger  = $logger;
         $this->service = $service;
         $this->buffer  = $buffer;
-        $buffer->woot = '?';
+        $buffer->woot  = '?';
 
     }
 

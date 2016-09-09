@@ -40,9 +40,9 @@ class Status implements ControllerInterface {
     /**
      * Class constructor.
      *
-     * @param \Slim\Router $router
+     * @param \Slim\Router                 $router
      * @param \League\Tactician\CommandBus $commandBus
-     * @param App\Factory\Command $commandFactory
+     * @param App\Factory\Command          $commandFactory
      *
      * @return void
      */
@@ -51,8 +51,8 @@ class Status implements ControllerInterface {
         CommandBus $commandBus,
         Command $commandFactory
     ) {
-        $this->router = $router;
-        $this->commandBus = $commandBus;
+        $this->router         = $router;
+        $this->commandBus     = $commandBus;
         $this->commandFactory = $commandFactory;
     }
 
@@ -62,7 +62,7 @@ class Status implements ControllerInterface {
      * @apiEndpointResponse 200 schema/status/generalHealth.json
      *
      * @param \Psr\Http\Message\ServerRequestInterface $request
-     * @param \Psr\Http\Message\ResponseInterface $response
+     * @param \Psr\Http\Message\ResponseInterface      $response
      *
      * @return \Psr\Http\Message\ResponseInterface
      */
