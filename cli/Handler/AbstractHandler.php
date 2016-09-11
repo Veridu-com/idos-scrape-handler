@@ -9,6 +9,7 @@ declare(strict_types = 1);
 namespace Cli\Handler;
 
 use Cli\Utils\Logger;
+// use idOS\SDK;
 use OAuth\Common\Service\ServiceInterface;
 
 /**
@@ -21,6 +22,12 @@ abstract class AbstractHandler implements HandlerInterface {
      * @var Cli\Utils\Logger
      */
     protected $logger;
+    /**
+     * idOS SDK instance.
+     *
+     * @var \idOS\SDK
+     */
+    // protected $sdk;
     /**
      * OAuth Service instance.
      *
@@ -47,11 +54,19 @@ abstract class AbstractHandler implements HandlerInterface {
     /**
      * Returns a generator to be iterated and create threads.
      *
+     * @param idOS\SDK                               $sdk
+     * @param \OAuth\Common\Service\ServiceInterface $service
+     * @param
+     *
      * @return \Generator
      */
-    protected function poolGenerator(Logger $logger, ServiceInterface $service) : \Generator {
+    protected function poolGenerator(
+        // SDK $sdk,
+        ServiceInterface $service,
+        bool $dryRun
+    ) : \Generator {
         foreach ($this->poolThreads() as $thread) {
-            yield new $thread($logger, $service);
+            yield new $thread(/*$sdk,*/ $service, $dryRun);
         }
     }
 
@@ -59,27 +74,40 @@ abstract class AbstractHandler implements HandlerInterface {
      * Class constructor.
      *
      * @param Cli\Utils\Logger                       $logger
+     * @param idOS\SDK                               $sdk
      * @param \OAuth\Common\Service\ServiceInterface $service
      *
      * @return void
      */
-    public function __construct(Logger $logger, ServiceInterface $service) {
-        $this->logger  = $logger;
+    public function __construct(
+        Logger $logger,
+        // SDK $sdk,
+        ServiceInterface $service
+    ) {
+        $this->logger = $logger;
+        // $this->sdk     = $sdk;
         $this->service = $service;
     }
 
     /**
      * Handles Scrape process using a thread pool.
      *
-     * @return array
+     * @param bool $dryRun
+     *
+     * @return void
      */
-    public function handle() : array {
-        $this->logger->debug(sprintf('Initializing pool with %d threads', self::poolSize()));
+    public function handle(bool $dryRun = false) {
+        $this->logger->debug(
+            sprintf(
+                'Initializing pool with %d threads',
+                self::poolSize()
+            )
+        );
 
         $threadPool = [];
 
         $this->logger->debug('Adding worker threads');
-        foreach (self::poolGenerator($this->logger, $this->service) as $thread) {
+        foreach (self::poolGenerator(/*$this->sdk,*/ $this->service, $dryRun) as $thread) {
             $threadPool[] = $thread;
             $thread->start();
         }
@@ -95,23 +123,44 @@ abstract class AbstractHandler implements HandlerInterface {
                 $className = substr($className, strrpos($className, '\\') + 1);
 
                 if ($thread->isTerminated()) {
-                    $this->logger->debug(sprintf('Thread #%d (%s) was terminated: "%s"', $index, $className, $thread->getLastError()));
+                    $this->logger->debug(
+                        sprintf(
+                            'Thread #%d (%s) was terminated: "%s"',
+                            $index,
+                            $className,
+                            $thread->getLastError()
+                        )
+                    );
                     unset($threadPool[$index]);
                     continue;
                 }
 
-                if ($thread->getLastError()) {
-                    $this->logger->debug(sprintf('Thread #%d (%s) failed: "%s"', $index, $className, $thread->getLastError()));
-                } else {
-                    $this->logger->debug(sprintf('Thread #%d (%s) completed (%d bytes)', $index, $className, $thread->getRawBufferSize()));
+                if ($thread->failed()) {
+                    $this->logger->debug(
+                        sprintf(
+                            'Thread #%d (%s) failed: "%s"',
+                            $index,
+                            $className,
+                            $thread->getLastError()
+                        )
+                    );
+                    unset($threadPool[$index]);
+                    continue;
                 }
+
+                $this->logger->debug(
+                    sprintf(
+                        'Thread #%d (%s) completed (%.2fs)',
+                        $index,
+                        $className,
+                        $thread->getExecTime()
+                    )
+                );
 
                 unset($threadPool[$index]);
             }
         } while (count($threadPool));
 
         $this->logger->debug('Completed');
-
-        return [];
     }
 }

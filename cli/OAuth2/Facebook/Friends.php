@@ -8,9 +8,11 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Facebook;
 
-use Cli\Handler\AbstractHandlerThread;
-
-class Friends extends AbstractHandlerThread {
-    public function run() {
+class Friends extends AbstractFacebookThread {
+    /**
+     * {@inheritdoc}
+     */
+    public function execute() : bool {
+        return false;
     }
 }

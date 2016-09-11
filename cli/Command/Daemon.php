@@ -15,6 +15,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+
 // use Veridu\idOS\SDK;
 
 /**
@@ -74,18 +75,6 @@ class Daemon extends Command {
 
         // idOS SDK Factory
         $sdkFactory = new \stdClass();
-        $sdkFactory->create = function (string $pubKey) {
-            $thingy = new \stdClass();
-            $thingy->raw = new \stdClass();
-            $thingy->raw->createNew = function (
-                string $userName,
-                int $sourceId,
-                string $collection,
-                array $data
-            ) {
-                echo 'SDK CALLED', PHP_EOL;
-            };
-        };
         // $sdkFactory = new SDK\Factory(
         //     __HNDKEY__,
         //     __HNDSEC__
@@ -134,24 +123,7 @@ class Daemon extends Command {
                     isset($jobData['apiVersion']) ? $jobData['apiVersion'] : ''
                 );
 
-                $data = $provider->handle();
-
-                $sdk = $sdkFactory->create($jobData['pubKey']);
-                foreach ($data as $collection => $content) {
-                    $logger->debug(
-                        sprintf(
-                            'Sending data for "%s" (%d bytes)',
-                            $collection,
-                            strlen($content)
-                        )
-                    );
-                    $sdk->raw->createNew(
-                        $jobData['userName'],
-                        $jobData['sourceId'],
-                        $collection,
-                        $content
-                    );
-                }
+                $provider->handle();
 
                 $logger->debug('Job done!');
                 $job->sendComplete('ok');

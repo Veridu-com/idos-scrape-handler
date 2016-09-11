@@ -1,6 +1,6 @@
 {
-    "name": "veridu/idos-handler-php",
-    "description": "Veridu idOS Handler Sample.",
+    "name": "veridu/idos-scrape-handler",
+    "description": "Veridu idOS Scrape Handler.",
     "license": "proprietary",
     "type": "project",
     "keywords": [],
@@ -8,14 +8,6 @@
         {
             "name": "Flavio Heleno",
             "email": "flavio@veridu.com"
-        },
-        {
-            "name": "Rafael Campanari",
-            "email": "rafael@veridu.com"
-        },
-        {
-            "name": "Caue Lorenzato",
-            "email": "caue@veridu.com"
         }
     ],
     "autoload": {
@@ -26,22 +18,22 @@
         }
     },
     "require": {
-        "slim/slim": "^3.0",
-        "slim/http-cache": "^0.3",
+        "filp/whoops": "^2.0",
+        "fzaninotto/faker": "^1.6",
+        "justinrainbow/json-schema": "^2.0",
+        "lcobucci/jwt": "^3.1",
+        "league/event": "^2.1",
+        "league/tactician": "^1.0",
+        "league/tactician-container": "^1.0",
+        "league/tactician-logger": "^0.9",
+        "lusitanian/oauth": "^0.8",
         "monolog/monolog": "^1.13",
         "respect/validation": "^1.0",
-        "filp/whoops": "^2.0",
-        "lcobucci/jwt": "^3.1",
-        "league/tactician": "^1.0",
-        "league/tactician-logger": "^0.9",
-        "league/tactician-container": "^1.0",
         "roave/security-advisories": "dev-master",
-        "justinrainbow/json-schema": "^2.0",
-        "fzaninotto/faker": "^1.6",
-        "league/event": "^2.1",
-        "tuupola/slim-basic-auth": "^2.1",
+        "slim/http-cache": "^0.3",
+        "slim/slim": "^3.0",
         "symfony/console": "^3.1",
-        "lusitanian/oauth": "^0.8"
+        "tuupola/slim-basic-auth": "^2.1"
     },
     "require-dev": {
         "ext-xsl": "*",

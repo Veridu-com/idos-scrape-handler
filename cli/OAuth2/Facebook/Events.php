@@ -8,9 +8,40 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Facebook;
 
-use Cli\Handler\AbstractHandlerThread;
+class Events extends AbstractFacebookThread {
+    /**
+     * {@inheritdoc}
+     */
+    public function execute() : bool {
+        try {
+            $buffer = [];
+            foreach ($this->fetchAll('/me/events', 'fields=id,rsvp_status,timezone,start_time,end_time,name,place,description') as $json) {
+                if ($json === false) {
+                    break;
+                }
 
-class Events extends AbstractHandlerThread {
-    public function run() {
+                if ((! $this->dryRun) && (count($json))) {
+                    // Send post data to idOS API
+                    $buffer = array_merge($buffer, $json);
+                    printf('Uploading %d new items (%d total)', count($json), count($buffer));
+                    echo PHP_EOL;
+                    // $this
+                    //     ->sdk
+                    //     ->profile
+                    //     ->raw
+                    //     ->createNew(
+                    //         $this->userName,
+                    //         'events',
+                    //         $buffer
+                    //     );
+                }
+            }
+
+            return true;
+        } catch (\Exception $exception) {
+            $this->lastError = $exception->getMessage();
+
+            return false;
+        }
     }
 }

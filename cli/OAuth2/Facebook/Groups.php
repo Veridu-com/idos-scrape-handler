@@ -8,9 +8,40 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Facebook;
 
-use Cli\Handler\AbstractHandlerThread;
+class Groups extends AbstractFacebookThread {
+    /**
+     * {@inheritdoc}
+     */
+    public function execute() : bool {
+        try {
+            $buffer = [];
+            foreach ($this->fetchAll('/me/groups', 'fields=name,privacy,administrator,bookmark_order,unread') as $json) {
+                if ($json === false) {
+                    break;
+                }
 
-class Groups extends AbstractHandlerThread {
-    public function run() {
+                if ((! $this->dryRun) && (count($json))) {
+                    // Send post data to idOS API
+                    $buffer = array_merge($buffer, $json);
+                    printf('Uploading %d new items (%d total)', count($json), count($buffer));
+                    echo PHP_EOL;
+                    // $this
+                    //     ->sdk
+                    //     ->profile
+                    //     ->raw
+                    //     ->createNew(
+                    //         $this->userName,
+                    //         'groups',
+                    //         $buffer
+                    //     );
+                }
+            }
+
+            return true;
+        } catch (\Exception $exception) {
+            $this->lastError = $exception->getMessage();
+
+            return false;
+        }
     }
 }

@@ -58,6 +58,11 @@ class Runner extends Command {
                 'apiVersion',
                 InputArgument::OPTIONAL,
                 'API Version'
+            )
+            ->addArgument(
+                'dryRun',
+                InputArgument::OPTIONAL,
+                'On dry run mode, no data is sent to idOS API'
             );
     }
 
@@ -91,7 +96,7 @@ class Runner extends Command {
             $input->getArgument('apiVersion') ?: ''
         );
 
-        $data = $provider->handle();
+        $data = $provider->handle($input->getArgument('dryRun') ?: false);
 
         $logger->debug('Runner completed');
     }

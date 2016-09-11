@@ -34,7 +34,11 @@ class OAuthFactory {
      */
     public function __construct() {
         $client = new CurlClient();
-        $client->setCurlParameters([\CURLOPT_ENCODING => '']);
+        $client->setCurlParameters(
+            [
+                \CURLOPT_ENCODING => ''
+            ]
+        );
         $this->serviceFactory = new ServiceFactory();
         $this->serviceFactory->setHttpClient($client);
     }

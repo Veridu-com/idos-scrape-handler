@@ -8,7 +8,7 @@ declare(strict_types = 1);
 
 namespace Cli\Handler;
 
-use Cli\Utils\Logger;
+use idOS\SDK;
 use OAuth\Common\Service\ServiceInterface;
 
 /**
@@ -16,23 +16,11 @@ use OAuth\Common\Service\ServiceInterface;
  */
 abstract class AbstractHandlerThread extends \Thread {
     /**
-     * Thread raw data buffer.
+     * idOS SDK instance.
      *
-     * @var string
+     * @var \idOS\SDK
      */
-    protected $rawBuffer = '';
-    /**
-     * Thread parsed buffer.
-     *
-     * @var string
-     */
-    protected $parsedBuffer;
-    /**
-     * Logger instance.
-     *
-     * @var Cli\Utils\Logger
-     */
-    protected $logger;
+    // protected $sdk;
     /**
      * OAuth Service instance.
      *
@@ -40,50 +28,58 @@ abstract class AbstractHandlerThread extends \Thread {
      */
     protected $service;
     /**
+     * Dry run flag.
+     *
+     * Controls if data is sent (dryRun=false) to idOS or not (dryRun=true).
+     *
+     * @var bool
+     */
+    protected $dryRun;
+    /**
+     * Failure flag.
+     *
+     * @var bool
+     */
+    protected $failed = false;
+    /**
      * Last Thread error.
      *
      * @var string
      */
     protected $lastError = '';
+    /**
+     * Execution time.
+     *
+     * @var float
+     */
+    protected $execTime = 0.0;
 
     /**
      * Class constructor.
      *
-     * @param Logger           $logger
-     * @param ServiceInterface $service
+     * @param \idOS\SDK                              $sdk
+     * @param \OAuth\Common\Service\ServiceInterface $service
+     * @param bool                                   $dryRun
      *
      * @return void
      */
-    public function __construct(Logger $logger, ServiceInterface $service) {
-        $this->logger  = $logger;
+    public function __construct(
+        // SDK $sdk,
+        ServiceInterface $service,
+        bool $dryRun = false
+    ) {
+        // $this->sdk     = $sdk;
         $this->service = $service;
+        $this->dryRun  = $dryRun;
     }
 
     /**
-     * Returns Thread's raw buffer content.
+     * Returns Thread's failure flag.
      *
-     * @return string
+     * @return bool
      */
-    public function getRawBuffer() : string {
-        return $this->rawBuffer;
-    }
-
-    /**
-     * Returns Thread's raw buffer size.
-     *
-     * @return int
-     */
-    public function getRawBufferSize() : int {
-        return strlen($this->rawBuffer);
-    }
-
-    /**
-     * Returns Thread's parsed buffer content.
-     *
-     * @return mixed
-     */
-    public function getParsedBuffer() {
-        return $this->parsedBuffer;
+    public function failed() : bool {
+        return $this->failed;
     }
 
     /**
@@ -94,4 +90,34 @@ abstract class AbstractHandlerThread extends \Thread {
     public function getLastError() : string {
         return $this->lastError;
     }
+
+    /**
+     * Returns Thread's execution time.
+     *
+     * @return float
+     */
+    public function getExecTime() : float {
+        return $this->execTime;
+    }
+
+    /**
+     * Thread run method.
+     *
+     * @return void
+     */
+    public function run() {
+        $startTime = microtime(true);
+        if (! $this->execute()) {
+            $this->failed = true;
+        }
+
+        $this->execTime = microtime(true) - $startTime;
+    }
+
+    /**
+     * Main execution function.
+     *
+     * @return void
+     */
+    abstract public function execute();
 }
