@@ -21,6 +21,12 @@ class Logger extends \Threaded {
      * @var \Monolog\Logger
      */
     private $logger;
+    /**
+     * Busy flag for synchornized output.
+     *
+     * @var bool
+     */
+    private $busy = false;
 
     /**
      * Class constructor.
@@ -31,7 +37,7 @@ class Logger extends \Threaded {
      * @return void
      */
     public function __construct(string $stream = 'php://stdout', int $level = Monolog::DEBUG) {
-        $this->logger = new Monolog('Manager');
+        $this->logger = new Monolog('Scrape');
         $this->logger->pushHandler(new StreamHandler($stream, $level));
     }
 
@@ -45,10 +51,16 @@ class Logger extends \Threaded {
      */
     public function __call(string $name, array $arguments) {
         $this->synchronized(
-            function ($thread, $name, $arguments) {
-            // call_user_func_array([$thread->logger, $name], $arguments);
-                echo $arguments[0], PHP_EOL;
-            }, $this, $name, $arguments
+            function () use ($name, $arguments) {
+                while ($this->busy) {
+                    $this->wait();
+                }
+
+                $this->busy = true;
+                call_user_func_array([$this->logger, $name], $arguments);
+                $this->busy = false;
+                $this->notify();
+            }
         );
     }
 }
