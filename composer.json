@@ -1,6 +1,6 @@
 {
-    "name": "veridu/idos-handler-php",
-    "description": "Veridu idOS Handler Sample.",
+    "name": "veridu/idos-scrape-handler",
+    "description": "Veridu idOS Scrape Handler.",
     "license": "proprietary",
     "type": "project",
     "keywords": [],
@@ -8,14 +8,6 @@
         {
             "name": "Flavio Heleno",
             "email": "flavio@veridu.com"
-        },
-        {
-            "name": "Rafael Campanari",
-            "email": "rafael@veridu.com"
-        },
-        {
-            "name": "Caue Lorenzato",
-            "email": "caue@veridu.com"
         }
     ],
     "autoload": {
@@ -25,38 +17,44 @@
             "Test\\": "test"
         }
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/flavioheleno/idos-sdk-php"
+        }
+    ],
     "require": {
-        "slim/slim": "^3.0",
-        "slim/http-cache": "^0.3",
+        "veridu/idos-sdk-php": "dev-master",
+        "filp/whoops": "^2.0",
+        "fzaninotto/faker": "^1.6",
+        "justinrainbow/json-schema": "^2.0",
+        "lcobucci/jwt": "^3.1",
+        "league/event": "^2.1",
+        "league/tactician": "^1.0",
+        "league/tactician-container": "^1.0",
+        "league/tactician-logger": "^0.9",
+        "lusitanian/oauth": "^0.8",
         "monolog/monolog": "^1.13",
         "respect/validation": "^1.0",
-        "filp/whoops": "^2.0",
-        "lcobucci/jwt": "^3.1",
-        "league/tactician": "^1.0",
-        "league/tactician-logger": "^0.9",
-        "league/tactician-container": "^1.0",
         "roave/security-advisories": "dev-master",
-        "justinrainbow/json-schema": "^2.0",
-        "fzaninotto/faker": "^1.6",
-        "league/event": "^2.1",
-        "tuupola/slim-basic-auth": "^2.0",
+        "slim/http-cache": "^0.3",
+        "slim/slim": "^3.0",
         "symfony/console": "^3.1",
-        "lusitanian/oauth": "^0.8"
+        "tuupola/slim-basic-auth": "^2.1"
     },
     "require-dev": {
-        "phpunit/phpunit": "@stable",
-        "phpunit/php-code-coverage": "^3.0.0",
-        "phpunit/dbunit": "@stable",
-        "phpmd/phpmd" : "@stable",
-        "phploc/phploc": "@stable",
-        "sebastian/phpcpd": "@stable",
-        "squizlabs/php_codesniffer": "@stable",
-        "friendsofphp/php-cs-fixer": "@stable",
-        "sensiolabs/security-checker": "@stable",
-        "psy/psysh": "@stable",
-        "theseer/phpdox": "@stable",
         "ext-xsl": "*",
-        "humbug/humbug": "dev-master"
+        "friendsofphp/php-cs-fixer": "@stable",
+        "pdepend/pdepend": "@stable",
+        "phploc/phploc": "@stable",
+        "phpmd/phpmd" : "@stable",
+        "phpunit/dbunit": "@stable",
+        "phpunit/phpunit": "@stable",
+        "psy/psysh": "@stable",
+        "sebastian/phpcpd": "@stable",
+        "sensiolabs/security-checker": "@stable",
+        "squizlabs/php_codesniffer": "@stable",
+        "theseer/phpdox": "@stable"
     },
     "config": {
         "optimize-autoloader": false

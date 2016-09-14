@@ -33,8 +33,12 @@ class OAuthFactory {
      * @return void
      */
     public function __construct() {
-        $client = new CurlClient;
-        $client->setCurlParameters([\CURLOPT_ENCODING => '']);
+        $client = new CurlClient();
+        $client->setCurlParameters(
+            [
+                \CURLOPT_ENCODING => ''
+            ]
+        );
         $this->serviceFactory = new ServiceFactory();
         $this->serviceFactory->setHttpClient($client);
     }
@@ -42,12 +46,12 @@ class OAuthFactory {
     /**
      * Creates a new instance of an OAuth Service.
      *
-     * @param  string $serviceName
-     * @param  string $accessToken
-     * @param  string $tokenSecret
-     * @param  string $appKey
-     * @param  string $appSecret
-     * @param  string $apiVersion
+     * @param string $serviceName
+     * @param string $accessToken
+     * @param string $tokenSecret
+     * @param string $appKey
+     * @param string $appSecret
+     * @param string $apiVersion
      *
      * @return \OAuth\Common\Service\ServiceInterface
      */

@@ -8,7 +8,9 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Google\Drive;
 
-class Apps extends \Thread {
+use Cli\Handler\AbstractHandlerThread;
+
+class Apps extends AbstractHandlerThread {
     public function run() {
     }
 }

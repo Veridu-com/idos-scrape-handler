@@ -50,6 +50,15 @@ $container['errorHandler'] = function (ContainerInterface $container) : callable
             ->denyCache($response);
 
         $log = $container->get('log');
+        $log('Foundation')->error(
+            sprintf(
+                '%s [%s:%d]',
+                $exception->getMessage(),
+                $exception->getFile(),
+                $exception->getLine()
+            )
+        );
+        $log('Foundation')->error($exception->getTraceAsString());
 
         if ($exception instanceof AppException) {
             $log('API')->info(
@@ -64,11 +73,12 @@ $container['errorHandler'] = function (ContainerInterface $container) : callable
             $body = [
                 'status' => false,
                 'error'  => [
-                    'code' => $exception->getCode(),
-                    // 'type' => $exception->getType(),
-                    // 'link' => $exception->getLink(),
+                    'id'      => $container->get('logUidProcessor')->getUid(),
+                    'code'    => $exception->getCode(),
+                    'type'    => 'EXCEPTION_TYPE', // $exception->getType(),
+                    'link'    => 'https://docs.idos.io/errors/EXCEPTION_TYPE', // $exception->getLink(),
                     'message' => $exception->getMessage(),
-                    'trace'   => $exception->getTraceAsString()
+                    'trace'   => $exception->getTrace()
                 ]
             ];
 
@@ -83,16 +93,6 @@ $container['errorHandler'] = function (ContainerInterface $container) : callable
 
             return $container->get('commandBus')->handle($command);
         }
-
-        $log('Foundation')->error(
-            sprintf(
-                '%s [%s:%d]',
-                $exception->getMessage(),
-                $exception->getFile(),
-                $exception->getLine()
-            )
-        );
-        $log('Foundation')->error($exception->getTraceAsString());
 
         $settings = $container->get('settings');
         if ($settings['debug']) {
@@ -124,9 +124,10 @@ $container['errorHandler'] = function (ContainerInterface $container) : callable
         $body = [
             'status' => false,
             'error'  => [
+                'id'      => $container->get('logUidProcessor')->getUid(),
                 'code'    => 500,
                 'type'    => 'APPLICATION_ERROR',
-                'link'    => null,
+                'link'    => 'https://docs.idos.io/errors/APPLICATION_ERROR',
                 'message' => 'Internal Application Error'
             ]
         ];
@@ -148,7 +149,7 @@ $container['notFoundHandler'] = function (ContainerInterface $container) : calla
         ServerRequestInterface $request,
         ResponseInterface $response
     ) use ($container) {
-        throw new \Exception('Whoopsies! Route not found!', 404);
+        throw new AppException('Whoopsies! Route not found!', 404);
     };
 };
 
@@ -163,8 +164,18 @@ $container['notAllowedHandler'] = function (ContainerInterface $container) : cal
             return $response->withStatus(204);
         }
 
-        throw new \Exception('Whoopsies! Method not allowed for this route!', 400);
+        throw new AppException('Whoopsies! Method not allowed for this route!', 400);
     };
+};
+
+// Monolog Request UID Processor
+$container['logUidProcessor'] = function (ContainerInterface $container) : callable {
+    return new UidProcessor();
+};
+
+// Monolog Request Processor
+$container['logWebProcessor'] = function (ContainerInterface $container) : callable {
+    return new WebProcessor();
 };
 
 // Monolog Logger
@@ -173,8 +184,8 @@ $container['log'] = function (ContainerInterface $container) : callable {
         $settings = $container->get('settings');
         $logger   = new Logger($channel);
         $logger
-            ->pushProcessor(new UidProcessor())
-            ->pushProcessor(new WebProcessor())
+            ->pushProcessor($container->get('logUidProcessor'))
+            ->pushProcessor($container->get('logWebProcessor'))
             ->pushHandler(new StreamHandler($settings['log']['path'], $settings['log']['level']));
 
         return $logger;
@@ -189,25 +200,11 @@ $container['httpCache'] = function (ContainerInterface $container) : CacheProvid
 // Tactician Command Bus
 $container['commandBus'] = function (ContainerInterface $container) : CommandBus {
     $settings = $container->get('settings');
-    $logger   = new Logger('CommandBus');
-    $logger
-        ->pushProcessor(new UidProcessor())
-        ->pushProcessor(new WebProcessor())
-        ->pushHandler(new StreamHandler($settings['log']['path'], $settings['log']['level']));
+    $log      = $container->get('log');
 
-    $commandPaths = glob(__DIR__ . '/../app/Command/*/*.php');
-    $commands     = [];
-    foreach ($commandPaths as $commandPath) {
-        $matches = [];
-        preg_match_all('/.*Command\/(.*)\/(.*).php/', $commandPath, $matches);
-
-        $resource = $matches[1][0];
-        $command  = $matches[2][0];
-
-        $commands[sprintf('App\\Command\\%s\\%s', $resource, $command)] = sprintf('App\\Handler\\%s', $resource);
-    }
-
+    $commands                                  = [];
     $commands[Command\ResponseDispatch::class] = Handler\Response::class;
+    $commands[Command\Job::class]              = Handler\Schedule::class;
     $handlerMiddleware                         = new CommandHandlerMiddleware(
         new ClassNameExtractor(),
         new ContainerLocator(
@@ -226,7 +223,7 @@ $container['commandBus'] = function (ContainerInterface $container) : CommandBus
         [
             new LoggerMiddleware(
                 $formatter,
-                $logger
+                $log('CommandBus')
             ),
             $handlerMiddleware
         ]
@@ -267,9 +264,9 @@ $container['validator'] = function (ContainerInterface $container) : Validator {
 // App files
 $container['globFiles'] = function () : array {
     return [
-        'routes'             => glob(__DIR__ . '/../app/Route/*.php'),
-        'handlers'           => glob(__DIR__ . '/../app/Handler/*.php'),
-        'listenerProviders'  => glob(__DIR__ . '/../app/Listener/*/*Provider.php'),
+        'routes'            => glob(__DIR__ . '/../app/Route/*.php'),
+        'handlers'          => glob(__DIR__ . '/../app/Handler/*.php'),
+        'listenerProviders' => glob(__DIR__ . '/../app/Listener/*/*Provider.php'),
     ];
 };
 
@@ -279,8 +276,13 @@ $container['eventEmitter'] = function (ContainerInterface $container) : Emitter 
 
     $providers = array_map(
         function ($providerFile) {
-            return preg_replace('/.*?Listener\/(.*)\/ListenerProvider.php/', 'App\\Listener\\\$1\\ListenerProvider', $providerFile);
-        }, $container->get('globFiles')['listenerProviders']
+            return preg_replace(
+                '/.*?Listener\/(.*)\/ListenerProvider.php/',
+                'App\\Listener\\\$1\\ListenerProvider',
+                $providerFile
+            );
+        },
+        $container->get('globFiles')['listenerProviders']
     );
 
     foreach ($providers as $provider) {
@@ -288,4 +290,23 @@ $container['eventEmitter'] = function (ContainerInterface $container) : Emitter 
     }
 
     return $emitter;
+};
+
+// Gearman Client
+$container['gearmanClient'] = function (ContainerInterface $container) : GearmanClient {
+    $settings = $container->get('settings');
+    $gearman  = new \GearmanClient();
+    if (isset($settings['gearman']['timeout'])) {
+        $gearman->setTimeout($settings['gearman']['timeout']);
+    }
+
+    foreach ($settings['gearman']['servers'] as $server) {
+        if (is_array($server)) {
+            $gearman->addServer($server[0], $server[1]);
+        } else {
+            $gearman->addServer($server);
+        }
+    }
+
+    return $gearman;
 };

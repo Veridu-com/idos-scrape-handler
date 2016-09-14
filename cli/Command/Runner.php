@@ -35,6 +35,21 @@ class Runner extends Command {
                 'Provider name'
             )
             ->addArgument(
+                'userName',
+                InputArgument::REQUIRED,
+                'User name'
+            )
+            ->addArgument(
+                'sourceId',
+                InputArgument::REQUIRED,
+                'Source Id'
+            )
+            ->addArgument(
+                'publicKey',
+                InputArgument::REQUIRED,
+                'Public Key'
+            )
+            ->addArgument(
                 'accessToken',
                 InputArgument::REQUIRED,
                 'Access Token (oAuth v1.x and v2.x)'
@@ -58,6 +73,11 @@ class Runner extends Command {
                 'apiVersion',
                 InputArgument::OPTIONAL,
                 'API Version'
+            )
+            ->addArgument(
+                'dryRun',
+                InputArgument::OPTIONAL,
+                'On dry run mode, no data is sent to idOS API'
             );
     }
 
@@ -91,7 +111,20 @@ class Runner extends Command {
             $input->getArgument('apiVersion') ?: ''
         );
 
-        $data = $provider->handle();
+        // idOS SDK
+        $auth = new \idOS\Auth\CredentialToken(
+            $input->getArgument('publicKey'),
+            __HNDKEY__,
+            __HNDSEC__
+        );
+        $sdk = \idOS\SDK::create($auth);
+
+        $provider->handle(
+            $sdk,
+            $input->getArgument('userName'),
+            $input->getArgument('sourceId'),
+            $input->getArgument('dryRun') ?: false
+        );
 
         $logger->debug('Runner completed');
     }

@@ -16,6 +16,8 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+// use Veridu\idOS\SDK;
+
 /**
  * Command definition for Scraper Daemon.
  */
@@ -29,11 +31,6 @@ class Daemon extends Command {
         $this
             ->setName('scrape:daemon')
             ->setDescription('idOS Scrape - Daemon')
-            ->addArgument(
-                'providerName',
-                InputArgument::REQUIRED,
-                'Provider name'
-            )
             ->addArgument(
                 'serverList',
                 InputArgument::REQUIRED | InputArgument::IS_ARRAY,
@@ -53,9 +50,6 @@ class Daemon extends Command {
         $logger = new Logger();
 
         $logger->debug('Initializing idOS Scrape Handler Daemon');
-
-        // Provider setup
-        $providerName = $input->getArgument('providerName');
 
         // Server List setup
         $servers = $input->getArgument('serverList');
@@ -79,31 +73,42 @@ class Daemon extends Command {
         // 1 second I/O timeout
         $gearman->setTimeout(1000);
 
-        //
-        $factory = new HandlerFactory(
-            new OAuthFactory(),
-            [
-                'Linkedin' => 'Cli\\Handler\\LinkedIn',
-                'Paypal'   => 'Cli\\Handler\\PayPal'
-            ]
-        );
-
-        if (! $factory->check($providerName)) {
-            throw new \RuntimeException(sprintf('Invalid provider "%s".', $providerName));
-        }
-
-        $functionName = sprintf('%s-scrape', strtolower($providerName));
-
-        $logger->debug(sprintf('Registering Worker Function "%s"', $functionName));
+        $logger->debug('Registering Worker Function "scrape"');
 
         $gearman->addFunction(
-            $functionName, function (\GearmanJob $job) use ($logger, $factory, $providerName) {
+            'scrape',
+            function (\GearmanJob $job) use ($logger) {
                 $logger->debug('Got a new job!');
-                $jobData = $job->workload();
+                $jobData = json_decode($job->workload(), true);
+                if ($jobData === null) {
+                    $logger->debug('Invalid Job Workload!');
+                    $job->sendComplete('invalid');
+
+                    return;
+                }
+
+                // Scrape Handler Factory
+                $factory = new HandlerFactory(
+                    new OAuthFactory(),
+                    [
+                        'Linkedin' => 'Cli\\Handler\\LinkedIn',
+                        'Paypal'   => 'Cli\\Handler\\PayPal'
+                    ]
+                );
+
+                // Checks if $jobData['providerName'] is a supported Data Provider
+                if (! $factory->check($jobData['providerName'])) {
+                    throw new \RuntimeException(
+                        sprintf(
+                            'Invalid provider "%s".',
+                            $jobData['providerName']
+                        )
+                    );
+                }
 
                 $provider = $factory->create(
                     $logger,
-                    $providerName,
+                    $jobData['providerName'],
                     isset($jobData['accessToken']) ? $jobData['accessToken'] : '',
                     isset($jobData['tokenSecret']) ? $jobData['tokenSecret'] : '',
                     isset($jobData['appKey']) ? $jobData['appKey'] : '',
@@ -111,20 +116,23 @@ class Daemon extends Command {
                     isset($jobData['apiVersion']) ? $jobData['apiVersion'] : ''
                 );
 
-                $data = $provider->handle();
+                $provider->handle(
+                    $jobData['publicKey'],
+                    $jobData['userName'],
+                    (int) $jobData['sourceId']
+                );
 
                 $logger->debug('Job done!');
-                $job->sendComplete('');
+                $job->sendComplete('ok');
             }
         );
 
-        $functionName = sprintf('%s-ping', strtolower($providerName));
-
-        $logger->debug(sprintf('Registering Ping Function "%s"', $functionName));
+        $logger->debug('Registering Ping Function "ping"');
 
         // Register Thread's Ping Function
         $gearman->addFunction(
-            $functionName, function (\GearmanJob $job) use ($logger) {
+            'ping',
+            function (\GearmanJob $job) use ($logger) {
                 $logger->debug('Ping!');
 
                 return 'pong';

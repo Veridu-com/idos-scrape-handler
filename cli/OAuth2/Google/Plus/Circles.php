@@ -8,7 +8,9 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Google\Plus;
 
-class Circles extends \Thread {
+use Cli\Handler\AbstractHandlerThread;
+
+class Circles extends AbstractHandlerThread {
     public function run() {
     }
 }

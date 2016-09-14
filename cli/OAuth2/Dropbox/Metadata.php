@@ -8,7 +8,9 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Dropbox;
 
-class Metadata extends \Thread {
+use Cli\Handler\AbstractHandlerThread;
+
+class Metadata extends AbstractHandlerThread {
     public function run() {
     }
 }

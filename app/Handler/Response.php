@@ -173,6 +173,10 @@ class Response implements HandlerInterface {
         $body       = $command->body;
         $statusCode = $command->statusCode;
 
+        if ($body === null) {
+            $body = [];
+        }
+
         if (! isset($body['status'])) {
             $body = array_merge(['status' => true], $body);
         }

@@ -101,7 +101,7 @@ class HandlerFactory {
     /**
      * Returns if a handlerName is valid.
      *
-     * @param  string $handlerName
+     * @param string $handlerName
      *
      * @return bool
      */

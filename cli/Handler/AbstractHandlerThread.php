@@ -8,82 +8,36 @@ declare(strict_types = 1);
 
 namespace Cli\Handler;
 
-use Cli\Utils\Logger;
-use OAuth\Common\Service\ServiceInterface;
-
 /**
  * Abstract Scraper Thread implementation.
  */
 abstract class AbstractHandlerThread extends \Thread {
     /**
-     * Thread raw data buffer.
+     * Failure flag.
      *
-     * @var string
+     * @var bool
      */
-    protected $rawBuffer = '';
-    /**
-     * Thread parsed buffer.
-     *
-     * @var string
-     */
-    protected $parsedBuffer;
-    /**
-     * Logger instance.
-     *
-     * @var Cli\Utils\Logger
-     */
-    protected $logger;
-    /**
-     * OAuth Service instance.
-     *
-     * @var \OAuth\Common\Service\ServiceInterface
-     */
-    protected $service;
+    protected $failed = false;
     /**
      * Last Thread error.
      *
      * @var string
      */
     protected $lastError = '';
+    /**
+     * Execution time.
+     *
+     * @var float
+     */
+    protected $execTime = 0.0;
 
     /**
-     * Class constructor.
+     * Returns Thread's failure flag.
      *
-     * @param Logger           $logger
-     * @param ServiceInterface $service
-     *
-     * @return void
+     * @return bool
      */
-    public function __construct(Logger $logger, ServiceInterface $service) {
-        $this->logger  = $logger;
-        $this->service = $service;
-    }
-
-    /**
-     * Returns Thread's raw buffer content.
-     *
-     * @return string
-     */
-    public function getRawBuffer() : string {
-        return $this->rawBuffer;
-    }
-
-    /**
-     * Returns Thread's raw buffer size.
-     *
-     * @return int
-     */
-    public function getRawBufferSize() : int {
-        return strlen($this->rawBuffer);
-    }
-
-    /**
-     * Returns Thread's parsed buffer content.
-     *
-     * @return mixed
-     */
-    public function getParsedBuffer() {
-        return $this->parsedBuffer;
+    public function failed() : bool {
+        return $this->failed;
     }
 
     /**
@@ -94,4 +48,37 @@ abstract class AbstractHandlerThread extends \Thread {
     public function getLastError() : string {
         return $this->lastError;
     }
+
+    /**
+     * Returns Thread's execution time.
+     *
+     * @return float
+     */
+    public function getExecTime() : float {
+        return $this->execTime;
+    }
+
+    /**
+     * Thread run method.
+     *
+     * @return void
+     */
+    public function run() {
+        $startTime = microtime(true);
+        if (! $this->execute()) {
+            $this->failed = true;
+        }
+
+        $this->execTime = microtime(true) - $startTime;
+        $this->worker->getLogger()->debug(
+            sprintf('[%s] Completed (%.2fs)', static::class, $this->execTime)
+        );
+    }
+
+    /**
+     * Main execution function.
+     *
+     * @return void
+     */
+    abstract public function execute();
 }

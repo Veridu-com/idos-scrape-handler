@@ -10,6 +10,7 @@ namespace Cli\Handler;
 
 use Cli\Utils\Context;
 use Cli\Utils\Logger;
+use idOS\Auth\CredentialToken;
 use OAuth\Common\Service\ServiceInterface;
 
 /**
@@ -46,17 +47,6 @@ abstract class AbstractHandler implements HandlerInterface {
     }
 
     /**
-     * Returns a generator to be iterated and create threads.
-     *
-     * @return \Generator
-     */
-    protected function poolGenerator(Logger $logger, ServiceInterface $service) : \Generator {
-        foreach ($this->poolThreads() as $thread) {
-            yield new $thread($logger, $service);
-        }
-    }
-
-    /**
      * Class constructor.
      *
      * @param Cli\Utils\Logger                       $logger
@@ -64,7 +54,10 @@ abstract class AbstractHandler implements HandlerInterface {
      *
      * @return void
      */
-    public function __construct(Logger $logger, ServiceInterface $service) {
+    public function __construct(
+        Logger $logger,
+        ServiceInterface $service
+    ) {
         $this->logger  = $logger;
         $this->service = $service;
     }
@@ -72,47 +65,46 @@ abstract class AbstractHandler implements HandlerInterface {
     /**
      * Handles Scrape process using a thread pool.
      *
-     * @return array
+     * @param string $publicKey
+     * @param string $userName
+     * @param int    $sourceId
+     * @param bool   $dryRun
+     *
+     * @return void
      */
-    public function handle() : array {
-        $this->logger->debug(sprintf('Initializing pool with %d threads', self::poolSize()));
+    public function handle(
+        string $publicKey,
+        string $userName,
+        int $sourceId,
+        bool $dryRun = false
+    ) {
+        $this->logger->debug(
+            sprintf(
+                'Initializing pool with %d threads',
+                self::poolSize()
+            )
+        );
 
-        $threadPool = [];
+        $threadPool = new \Pool(
+            self::poolSize(),
+            Context::class,
+            [
+                $this->logger,
+                new CredentialToken($publicKey, __HNDKEY__, __HNDSEC__),
+                $this->service,
+                $userName,
+                $sourceId,
+                $dryRun
+            ]
+        );
 
         $this->logger->debug('Adding worker threads');
-        foreach (self::poolGenerator($this->logger, $this->service) as $thread) {
-            $threadPool[] = $thread;
-            $thread->start();
+        foreach ($this->poolThreads() as $className) {
+            $threadPool->submit(new $className());
         }
 
-        $this->logger->debug('Waiting for threads to be done');
-        do {
-            foreach ($threadPool as $index => $thread) {
-                if ($thread->isRunning()) {
-                    continue;
-                }
-
-                $className = get_class($thread);
-                $className = substr($className, strrpos($className, '\\') + 1);
-
-                if ($thread->isTerminated()) {
-                    $this->logger->debug(sprintf('Thread #%d (%s) was terminated: "%s"', $index, $className, $thread->getLastError()));
-                    unset($threadPool[$index]);
-                    continue;
-                }
-
-                if ($thread->getLastError()) {
-                    $this->logger->debug(sprintf('Thread #%d (%s) failed: "%s"', $index, $className, $thread->getLastError()));
-                } else {
-                    $this->logger->debug(sprintf('Thread #%d (%s) completed (%d bytes)', $index, $className, $thread->getRawBufferSize()));
-                }
-
-                unset($threadPool[$index]);
-            }
-        } while (count($threadPool));
+        $threadPool->shutdown();
 
         $this->logger->debug('Completed');
-
-        return [];
     }
 }

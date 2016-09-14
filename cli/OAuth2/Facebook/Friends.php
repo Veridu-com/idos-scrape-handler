@@ -8,7 +8,11 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Facebook;
 
-class Friends extends \Thread {
-    public function run() {
+class Friends extends AbstractFacebookThread {
+    /**
+     * {@inheritdoc}
+     */
+    public function execute() : bool {
+        return false;
     }
 }
