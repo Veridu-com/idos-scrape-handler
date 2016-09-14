@@ -8,33 +8,37 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Facebook;
 
-use idOS\SDK;
-
 class Tagged extends AbstractFacebookThread {
     /**
      * {@inheritdoc}
      */
-    public function execute(SDK $sdk) : bool {
+    public function execute() : bool {
         try {
+            $rawEndpoint = $this->worker->getSDK()
+                ->Profile($this->worker->getUserName())
+                ->Source($this->worker->getSourceId())
+                ->Raw;
             $buffer = [];
             foreach ($this->fetchAll('/me/tagged', 'fields=from,to,message,message_tags,picture,link,name,caption,description,icon,privacy,type,status_type,created_time,updated_time,is_hidden,is_expired,likes,comments') as $json) {
                 if ($json === false) {
                     break;
                 }
 
-                if ((! $this->dryRun) && (count($json))) {
+                if ((! $this->worker->isDryRun()) && (count($json))) {
                     // Send post data to idOS API
                     $buffer = array_merge($buffer, $json);
-                    printf('Uploading %d new items (%d total)', count($json), count($buffer));
-                    echo PHP_EOL;
-                    $sdk
-                        ->Profile($this->userName)
-                        ->Source($this->sourceId)
-                        ->Raw
-                        ->createNew(
-                            'tagged',
-                            $buffer
-                        );
+                    $this->worker->getLogger()->debug(
+                        sprintf(
+                            '[%s] Uploading %d new items (%d total)',
+                            static::class,
+                            count($json),
+                            count($buffer)
+                        )
+                    );
+                    $rawEndpoint->createNew(
+                        'tagged',
+                        $buffer
+                    );
                 }
             }
 

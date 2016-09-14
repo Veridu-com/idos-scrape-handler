@@ -8,8 +8,9 @@ declare(strict_types = 1);
 
 namespace Cli\Handler;
 
+use Cli\Utils\Context;
 use Cli\Utils\Logger;
-use idOS\Auth\AuthInterface;
+use idOS\Auth\CredentialToken;
 use OAuth\Common\Service\ServiceInterface;
 
 /**
@@ -43,29 +44,6 @@ abstract class AbstractHandler implements HandlerInterface {
      */
     protected function poolSize() : int {
         return count($this->poolThreads());
-    }
-
-    /**
-     * Returns a generator to be iterated and create threads.
-     *
-     * @param string                                 $publicKey
-     * @param string                                 $userName
-     * @param int                                    $sourceId
-     * @param \OAuth\Common\Service\ServiceInterface $service
-     * @param
-     *
-     * @return \Generator
-     */
-    protected function poolGenerator(
-        string $publicKey,
-        string $userName,
-        int $sourceId,
-        ServiceInterface $service,
-        bool $dryRun
-    ) : \Generator {
-        foreach ($this->poolThreads() as $thread) {
-            yield new $thread($publicKey, $userName, $sourceId, $service, $dryRun);
-        }
     }
 
     /**
@@ -107,62 +85,25 @@ abstract class AbstractHandler implements HandlerInterface {
             )
         );
 
-        $threadPool = [];
+        $threadPool = new \Pool(
+            self::poolSize(),
+            Context::class,
+            [
+                $this->logger,
+                new CredentialToken($publicKey, __HNDKEY__, __HNDSEC__),
+                $this->service,
+                $userName,
+                $sourceId,
+                $dryRun
+            ]
+        );
 
         $this->logger->debug('Adding worker threads');
-        foreach (self::poolGenerator($publicKey, $userName, $sourceId, $this->service, $dryRun) as $thread) {
-            $threadPool[] = $thread;
-            $thread->start();
+        foreach ($this->poolThreads() as $className) {
+            $threadPool->submit(new $className());
         }
 
-        $this->logger->debug('Waiting for threads to be done');
-        do {
-            foreach ($threadPool as $index => $thread) {
-                if ($thread->isRunning()) {
-                    continue;
-                }
-
-                $className = get_class($thread);
-                $className = substr($className, strrpos($className, '\\') + 1);
-
-                if ($thread->isTerminated()) {
-                    $this->logger->debug(
-                        sprintf(
-                            'Thread #%d (%s) was terminated: "%s"',
-                            $index,
-                            $className,
-                            $thread->getLastError()
-                        )
-                    );
-                    unset($threadPool[$index]);
-                    continue;
-                }
-
-                if ($thread->failed()) {
-                    $this->logger->debug(
-                        sprintf(
-                            'Thread #%d (%s) failed: "%s"',
-                            $index,
-                            $className,
-                            $thread->getLastError()
-                        )
-                    );
-                    unset($threadPool[$index]);
-                    continue;
-                }
-
-                $this->logger->debug(
-                    sprintf(
-                        'Thread #%d (%s) completed (%.2fs)',
-                        $index,
-                        $className,
-                        $thread->getExecTime()
-                    )
-                );
-
-                unset($threadPool[$index]);
-            }
-        } while (count($threadPool));
+        $threadPool->shutdown();
 
         $this->logger->debug('Completed');
     }

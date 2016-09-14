@@ -9,7 +9,6 @@ declare(strict_types = 1);
 namespace Cli\OAuth2\Facebook;
 
 use Cli\Handler\AbstractHandlerThread;
-use idOS\SDK;
 
 /**
  * Facebook's Profile Scraper.
@@ -18,10 +17,14 @@ class Profile extends AbstractHandlerThread {
     /**
      * {@inheritdoc}
      */
-    public function execute(SDK $sdk) : bool {
+    public function execute() : bool {
         try {
+            $rawEndpoint = $this->worker->getSDK()
+                ->Profile($this->worker->getUserName())
+                ->Source($this->worker->getSourceId())
+                ->Raw;
             // Retrieve profile data from Facebook's API
-            $rawBuffer = $this->service->request('/me?fields=id,first_name,last_name,gender,locale,languages,age_range,verified,birthday,education,email,hometown,location,picture.width(1024).height(1024),relationship_status,significant_other,work,friends');
+            $rawBuffer = $this->worker->getService()->request('/me?fields=id,first_name,last_name,gender,locale,languages,age_range,verified,birthday,education,email,hometown,location,picture.width(1024).height(1024),relationship_status,significant_other,work,friends');
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
@@ -41,18 +44,19 @@ class Profile extends AbstractHandlerThread {
             return false;
         }
 
-        if (! $this->dryRun) {
+        if (! $this->worker->isDryRun()) {
             // Send profile data to idOS API
             try {
-                echo 'Uploading user profile', PHP_EOL;
-                $sdk
-                    ->Profile($this->userName)
-                    ->Source($this->sourceId)
-                    ->Raw
-                    ->createNew(
-                        'profile',
-                        $parsedBuffer
-                    );
+                $this->worker->getLogger()->debug(
+                    sprintf(
+                        '[%s] Uploading profile',
+                        static::class
+                    )
+                );
+                $rawEndpoint->createNew(
+                    'profile',
+                    $parsedBuffer
+                );
             } catch (\Exception $exception) {
                 $this->lastError = $exception->getMessage();
 

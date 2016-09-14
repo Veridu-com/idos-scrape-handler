@@ -8,8 +8,9 @@ declare(strict_types = 1);
 
 namespace Cli\Utils;
 
-use OAuth\Common\Service\ServiceInterface;
+use idOS\Auth\AuthInterface;
 use idOS\SDK;
+use OAuth\Common\Service\ServiceInterface;
 
 /**
  * Handles Thread's context.
@@ -22,36 +23,80 @@ class Context extends \Worker {
      */
     private $logger;
     /**
-     * idOS SDK instance.
+     * idOS Authentication Token instance.
      *
-     * @var \idOS\SDKK
+     * @var \idOS\Auth\AuthInterface
      */
-    private $sdk;
+    private $authToken;
     /**
      * OAuth Service instance.
      *
      * @var \OAuth\Common\Service\ServiceInterface
      */
     private $service;
+    /**
+     * User name.
+     *
+     * @var string
+     */
+    private $userName;
+    /**
+     * Source Id.
+     *
+     * @var int
+     */
+    private $sourceId;
+    /**
+     * Dry run mode flag.
+     *
+     * If $dryRun is true, no data is sent do idOS API.
+     *
+     * @var bool
+     */
+    private $dryRun;
+
+    protected static $sdk;
 
     /**
      * Class constructor.
      *
      * @param Cli\Utils\Logger                       $logger
-     * @param \idOS\SDK                              $sdk
+     * @param \idOS\Auth\AuthInterface               $authToken
      * @param \OAuth\Common\Service\ServiceInterface $service
+     * @param string                                 $userName
+     * @param int                                    $sourceId
+     * @param bool                                   $dryRun
      *
      * @return void
      */
     public function __construct(
         Logger $logger,
-        SDK $sdk,
-        ServiceInterface $service
+        AuthInterface $authToken,
+        ServiceInterface $service,
+        string $userName,
+        int $sourceId,
+        bool $dryRun = false
     ) {
-        $this->logger  = $logger;
-        $this->sdk     = $sdk;
-        $this->service = $service;
+        $this->logger    = $logger;
+        $this->authToken = $authToken;
+        $this->service   = $service;
+        $this->userName  = $userName;
+        $this->sourceId  = $sourceId;
+        $this->dryRun    = $dryRun;
 
+    }
+
+    /**
+     * Worker's start function.
+     *
+     * Required for autoloading to work.
+     *
+     * @param int $options
+     *
+     * @return bool
+     */
+    public function start(int $options = null) : bool {
+        return parent::start(\PTHREADS_INHERIT_NONE);
     }
 
     /**
@@ -75,6 +120,19 @@ class Context extends \Worker {
     }
 
     /**
+     * Returns the idOS SDK instance.
+     *
+     * @return \idOS\SDK
+     */
+    public function getSDK() : SDK {
+        if (! self::$sdk) {
+            self::$sdk = SDK::create($this->authToken);
+        }
+
+        return self::$sdk;
+    }
+
+    /**
      * Returns the oAuth Service instance.
      *
      * @return mixed
@@ -84,11 +142,29 @@ class Context extends \Worker {
     }
 
     /**
-     * Returns the idOS SDK instance.
+     * Returns the User Name.
      *
-     * @return \idOS\SDK
+     * @return string
      */
-    public function getSDK() : SDK {
-        return $this->sdk;
+    public function getUserName() : string {
+        return $this->userName;
+    }
+
+    /**
+     * Returns the Source Id.
+     *
+     * @return int
+     */
+    public function getSourceId() : int {
+        return $this->sourceId;
+    }
+
+    /**
+     * Returns if is running in dry run mode.
+     *
+     * @return bool
+     */
+    public function isDryRun() : bool {
+        return $this->dryRun;
     }
 }

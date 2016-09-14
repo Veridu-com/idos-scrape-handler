@@ -16,7 +16,7 @@ abstract class AbstractFacebookThread extends AbstractHandlerThread {
         $buffer = [];
         try {
             while (true) {
-                $data = $this->service->request(sprintf('%s%s', $url, $param));
+                $data = $this->worker->getService()->request(sprintf('%s%s', $url, $param));
                 $json = json_decode($data, true);
                 if ($json === null) {
                     throw new \Exception('Failed to parse response');
