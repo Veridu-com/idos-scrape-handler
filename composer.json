@@ -17,7 +17,14 @@
             "Test\\": "test"
         }
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/flavioheleno/idos-sdk-php"
+        }
+    ],
     "require": {
+        "veridu/idos-sdk-php": "dev-master",
         "filp/whoops": "^2.0",
         "fzaninotto/faker": "^1.6",
         "justinrainbow/json-schema": "^2.0",

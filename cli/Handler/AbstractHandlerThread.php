@@ -8,6 +8,7 @@ declare(strict_types = 1);
 
 namespace Cli\Handler;
 
+use idOS\Auth\CredentialToken;
 use idOS\SDK;
 use OAuth\Common\Service\ServiceInterface;
 
@@ -16,11 +17,23 @@ use OAuth\Common\Service\ServiceInterface;
  */
 abstract class AbstractHandlerThread extends \Thread {
     /**
-     * idOS SDK instance.
+     * Public Key.
      *
-     * @var \idOS\SDK
+     * @var string
      */
-    // protected $sdk;
+    protected $publicKey;
+    /**
+     * User name.
+     *
+     * @var string
+     */
+    protected $userName;
+    /**
+     * Source Id.
+     *
+     * @var int
+     */
+    protected $sourceId;
     /**
      * OAuth Service instance.
      *
@@ -57,20 +70,34 @@ abstract class AbstractHandlerThread extends \Thread {
     /**
      * Class constructor.
      *
-     * @param \idOS\SDK                              $sdk
+     * @param string                                 $publicKey
+     * @param string                                 $userName
+     * @param int                                    $sourceId
      * @param \OAuth\Common\Service\ServiceInterface $service
      * @param bool                                   $dryRun
      *
      * @return void
      */
     public function __construct(
-        // SDK $sdk,
+        string $publicKey,
+        string $userName,
+        int $sourceId,
         ServiceInterface $service,
         bool $dryRun = false
     ) {
-        // $this->sdk     = $sdk;
-        $this->service = $service;
-        $this->dryRun  = $dryRun;
+        $this->publicKey = $publicKey;
+        $this->userName  = $userName;
+        $this->sourceId  = $sourceId;
+        $this->service   = $service;
+        $this->dryRun    = $dryRun;
+        $this->auth      = new CredentialToken(
+            $publicKey,
+            __HNDKEY__,
+            __HNDSEC__
+        );
+        $sdk = SDK::create($this->auth);
+        $x = (string) $this->auth;
+        $Raw = $sdk->Profile('x')->Source(0)->Raw->listAll();
     }
 
     /**
@@ -106,8 +133,11 @@ abstract class AbstractHandlerThread extends \Thread {
      * @return void
      */
     public function run() {
+        require_once __DIR__ . '/../../vendor/autoload.php';
+        // $auth = new CredentialToken($this->publicKey, __HNDKEY__, __HNDSEC__);
+        $sdk = SDK::create($this->auth);
         $startTime = microtime(true);
-        if (! $this->execute()) {
+        if (! $this->execute($sdk)) {
             $this->failed = true;
         }
 
@@ -117,7 +147,9 @@ abstract class AbstractHandlerThread extends \Thread {
     /**
      * Main execution function.
      *
+     * @param \idOS\SDK $sdk
+     *
      * @return void
      */
-    abstract public function execute();
+    abstract public function execute(SDK $sdk);
 }

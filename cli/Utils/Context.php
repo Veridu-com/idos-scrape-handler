@@ -9,6 +9,7 @@ declare(strict_types = 1);
 namespace Cli\Utils;
 
 use OAuth\Common\Service\ServiceInterface;
+use idOS\SDK;
 
 /**
  * Handles Thread's context.
@@ -21,35 +22,35 @@ class Context extends \Worker {
      */
     private $logger;
     /**
+     * idOS SDK instance.
+     *
+     * @var \idOS\SDKK
+     */
+    private $sdk;
+    /**
      * OAuth Service instance.
      *
      * @var \OAuth\Common\Service\ServiceInterface
      */
     private $service;
-    /**
-     * Thread-safe buffer instance..
-     *
-     * @var Cli\Utils\Buffer
-     */
-    private $buffer;
 
     /**
      * Class constructor.
      *
      * @param Cli\Utils\Logger                       $logger
+     * @param \idOS\SDK                              $sdk
      * @param \OAuth\Common\Service\ServiceInterface $service
      *
      * @return void
      */
     public function __construct(
         Logger $logger,
-        ServiceInterface $service,
-        Buffer $buffer
+        SDK $sdk,
+        ServiceInterface $service
     ) {
         $this->logger  = $logger;
+        $this->sdk     = $sdk;
         $this->service = $service;
-        $this->buffer  = $buffer;
-        $buffer->woot  = '?';
 
     }
 
@@ -83,11 +84,11 @@ class Context extends \Worker {
     }
 
     /**
-     * Returns the Buffer instance.
+     * Returns the idOS SDK instance.
      *
-     * @return Cli\Utils\Buffer
+     * @return \idOS\SDK
      */
-    public function getBuffer() : Buffer {
-        return $this->buffer;
+    public function getSDK() : SDK {
+        return $this->sdk;
     }
 }

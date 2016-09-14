@@ -89,8 +89,8 @@ class Schedule implements ValidatorInterface {
      *
      * @return void
      */
-    public function assertVersion($version) {
-        Validator::regex('/^(?:(\d+)\.)?(?:(\d+)\.)?(\*|\d+)$/')
+    public function assertOptionalVersion($version) {
+        Validator::regex('/^((?:(\d+)\.)?(?:(\d+)\.)?(\*|\d+)|)$/')
             ->assert($version);
     }
 
@@ -105,7 +105,7 @@ class Schedule implements ValidatorInterface {
      */
     public function assertKey($key) {
         Validator::regex('/[a-zA-Z0-9]+/')
-            ->length(1, 25)
+            ->length(1, 32)
             ->assert($key);
     }
 }

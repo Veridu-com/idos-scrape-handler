@@ -94,8 +94,8 @@ class Schedule implements HandlerInterface {
             $this->validator->assertNullableToken($command->tokenSecret);
             $this->validator->assertToken($command->appKey);
             $this->validator->assertToken($command->appSecret);
-            $this->validator->assertVersion($command->apiVersion);
-            $this->validator->assertKey($command->pubKey);
+            $this->validator->assertOptionalVersion($command->apiVersion);
+            $this->validator->assertKey($command->publicKey);
         } catch (\Respect\Validation\Exceptions\ExceptionInterface $exception) {
             $this->emitter->emit(new InvalidJob($command));
             throw new AppException(

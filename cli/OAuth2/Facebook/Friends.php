@@ -8,11 +8,13 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Facebook;
 
+use idOS\SDK;
+
 class Friends extends AbstractFacebookThread {
     /**
      * {@inheritdoc}
      */
-    public function execute() : bool {
+    public function execute(SDK $sdk) : bool {
         return false;
     }
 }

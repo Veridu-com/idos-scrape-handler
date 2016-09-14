@@ -73,18 +73,11 @@ class Daemon extends Command {
         // 1 second I/O timeout
         $gearman->setTimeout(1000);
 
-        // idOS SDK Factory
-        $sdkFactory = new \stdClass();
-        // $sdkFactory = new SDK\Factory(
-        //     __HNDKEY__,
-        //     __HNDSEC__
-        // );
-
         $logger->debug('Registering Worker Function "scrape"');
 
         $gearman->addFunction(
             'scrape',
-            function (\GearmanJob $job) use ($logger, $sdkFactory) {
+            function (\GearmanJob $job) use ($logger) {
                 $logger->debug('Got a new job!');
                 $jobData = json_decode($job->workload(), true);
                 if ($jobData === null) {
@@ -123,7 +116,11 @@ class Daemon extends Command {
                     isset($jobData['apiVersion']) ? $jobData['apiVersion'] : ''
                 );
 
-                $provider->handle();
+                $provider->handle(
+                    $jobData['publicKey'],
+                    $jobData['userName'],
+                    (int) $jobData['sourceId']
+                );
 
                 $logger->debug('Job done!');
                 $job->sendComplete('ok');

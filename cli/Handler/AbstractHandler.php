@@ -9,7 +9,7 @@ declare(strict_types = 1);
 namespace Cli\Handler;
 
 use Cli\Utils\Logger;
-// use idOS\SDK;
+use idOS\Auth\AuthInterface;
 use OAuth\Common\Service\ServiceInterface;
 
 /**
@@ -22,12 +22,6 @@ abstract class AbstractHandler implements HandlerInterface {
      * @var Cli\Utils\Logger
      */
     protected $logger;
-    /**
-     * idOS SDK instance.
-     *
-     * @var \idOS\SDK
-     */
-    // protected $sdk;
     /**
      * OAuth Service instance.
      *
@@ -54,19 +48,23 @@ abstract class AbstractHandler implements HandlerInterface {
     /**
      * Returns a generator to be iterated and create threads.
      *
-     * @param idOS\SDK                               $sdk
+     * @param string                                 $publicKey
+     * @param string                                 $userName
+     * @param int                                    $sourceId
      * @param \OAuth\Common\Service\ServiceInterface $service
      * @param
      *
      * @return \Generator
      */
     protected function poolGenerator(
-        // SDK $sdk,
+        string $publicKey,
+        string $userName,
+        int $sourceId,
         ServiceInterface $service,
         bool $dryRun
     ) : \Generator {
         foreach ($this->poolThreads() as $thread) {
-            yield new $thread(/*$sdk,*/ $service, $dryRun);
+            yield new $thread($publicKey, $userName, $sourceId, $service, $dryRun);
         }
     }
 
@@ -74,29 +72,34 @@ abstract class AbstractHandler implements HandlerInterface {
      * Class constructor.
      *
      * @param Cli\Utils\Logger                       $logger
-     * @param idOS\SDK                               $sdk
      * @param \OAuth\Common\Service\ServiceInterface $service
      *
      * @return void
      */
     public function __construct(
         Logger $logger,
-        // SDK $sdk,
         ServiceInterface $service
     ) {
-        $this->logger = $logger;
-        // $this->sdk     = $sdk;
+        $this->logger  = $logger;
         $this->service = $service;
     }
 
     /**
      * Handles Scrape process using a thread pool.
      *
-     * @param bool $dryRun
+     * @param string $publicKey
+     * @param string $userName
+     * @param int    $sourceId
+     * @param bool   $dryRun
      *
      * @return void
      */
-    public function handle(bool $dryRun = false) {
+    public function handle(
+        string $publicKey,
+        string $userName,
+        int $sourceId,
+        bool $dryRun = false
+    ) {
         $this->logger->debug(
             sprintf(
                 'Initializing pool with %d threads',
@@ -107,7 +110,7 @@ abstract class AbstractHandler implements HandlerInterface {
         $threadPool = [];
 
         $this->logger->debug('Adding worker threads');
-        foreach (self::poolGenerator(/*$this->sdk,*/ $this->service, $dryRun) as $thread) {
+        foreach (self::poolGenerator($publicKey, $userName, $sourceId, $this->service, $dryRun) as $thread) {
             $threadPool[] = $thread;
             $thread->start();
         }

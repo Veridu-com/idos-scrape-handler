@@ -8,11 +8,13 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Facebook;
 
+use idOS\SDK;
+
 class Tagged extends AbstractFacebookThread {
     /**
      * {@inheritdoc}
      */
-    public function execute() : bool {
+    public function execute(SDK $sdk) : bool {
         try {
             $buffer = [];
             foreach ($this->fetchAll('/me/tagged', 'fields=from,to,message,message_tags,picture,link,name,caption,description,icon,privacy,type,status_type,created_time,updated_time,is_hidden,is_expired,likes,comments') as $json) {
@@ -25,15 +27,14 @@ class Tagged extends AbstractFacebookThread {
                     $buffer = array_merge($buffer, $json);
                     printf('Uploading %d new items (%d total)', count($json), count($buffer));
                     echo PHP_EOL;
-                    // $this
-                    //     ->sdk
-                    //     ->profile
-                    //     ->raw
-                    //     ->createNew(
-                    //         $this->userName,
-                    //         'tagged',
-                    //         $buffer
-                    //     );
+                    $sdk
+                        ->Profile($this->userName)
+                        ->Source($this->sourceId)
+                        ->Raw
+                        ->createNew(
+                            'tagged',
+                            $buffer
+                        );
                 }
             }
 

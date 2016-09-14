@@ -8,11 +8,13 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Facebook;
 
+use idOS\SDK;
+
 class Family extends AbstractFacebookThread {
     /**
      * {@inheritdoc}
      */
-    public function execute() : bool {
+    public function execute(SDK $sdk) : bool {
         try {
             $buffer = [];
             foreach ($this->fetchAll('/me/family', 'fields=id,first_name,last_name,relationship,picture') as $json) {
@@ -25,15 +27,14 @@ class Family extends AbstractFacebookThread {
                     $buffer = array_merge($buffer, $json);
                     printf('Uploading %d new items (%d total)', count($json), count($buffer));
                     echo PHP_EOL;
-                    // $this
-                    //     ->sdk
-                    //     ->profile
-                    //     ->raw
-                    //     ->createNew(
-                    //         $this->userName,
-                    //         'family',
-                    //         $buffer
-                    //     );
+                    $sdk
+                        ->Profile($this->userName)
+                        ->Source($this->sourceId)
+                        ->Raw
+                        ->createNew(
+                            'family',
+                            $buffer
+                        );
                 }
             }
 

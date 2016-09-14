@@ -8,11 +8,13 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Facebook;
 
+use idOS\SDK;
+
 class Events extends AbstractFacebookThread {
     /**
      * {@inheritdoc}
      */
-    public function execute() : bool {
+    public function execute(SDK $sdk) : bool {
         try {
             $buffer = [];
             foreach ($this->fetchAll('/me/events', 'fields=id,rsvp_status,timezone,start_time,end_time,name,place,description') as $json) {
@@ -25,15 +27,14 @@ class Events extends AbstractFacebookThread {
                     $buffer = array_merge($buffer, $json);
                     printf('Uploading %d new items (%d total)', count($json), count($buffer));
                     echo PHP_EOL;
-                    // $this
-                    //     ->sdk
-                    //     ->profile
-                    //     ->raw
-                    //     ->createNew(
-                    //         $this->userName,
-                    //         'events',
-                    //         $buffer
-                    //     );
+                    $sdk
+                        ->Profile($this->userName)
+                        ->Source($this->sourceId)
+                        ->Raw
+                        ->createNew(
+                            'events',
+                            $buffer
+                        );
                 }
             }
 
