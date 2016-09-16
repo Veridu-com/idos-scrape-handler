@@ -16,7 +16,6 @@ class Events extends AbstractFacebookThread {
         try {
             $rawEndpoint = $this->worker->getSDK()
                 ->Profile($this->worker->getUserName())
-                ->Source($this->worker->getSourceId())
                 ->Raw;
             $buffer = [];
             foreach ($this->fetchAll('/me/events', 'fields=id,rsvp_status,timezone,start_time,end_time,name,place,description') as $json) {
@@ -36,6 +35,7 @@ class Events extends AbstractFacebookThread {
                         )
                     );
                     $rawEndpoint->createNew(
+                        $this->worker->getSourceId(),
                         'events',
                         $buffer
                     );

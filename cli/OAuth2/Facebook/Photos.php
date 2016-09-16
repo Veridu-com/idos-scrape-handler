@@ -16,7 +16,6 @@ class Photos extends AbstractFacebookThread {
         try {
             $rawEndpoint = $this->worker->getSDK()
                 ->Profile($this->worker->getUserName())
-                ->Source($this->worker->getSourceId())
                 ->Raw;
             $buffer = [];
             foreach ($this->fetchAll('/me/photos', 'fields=created_time,from,height,icon,images,link,name,picture,source,updated_time,width,tags,likes,comments') as $json) {
@@ -36,6 +35,7 @@ class Photos extends AbstractFacebookThread {
                         )
                     );
                     $rawEndpoint->createNew(
+                        $this->worker->getSourceId(),
                         'photos',
                         $buffer
                     );
