@@ -16,7 +16,6 @@ class Groups extends AbstractFacebookThread {
         try {
             $rawEndpoint = $this->worker->getSDK()
                 ->Profile($this->worker->getUserName())
-                ->Source($this->worker->getSourceId())
                 ->Raw;
             $buffer = [];
             foreach ($this->fetchAll('/me/groups', 'fields=name,privacy,administrator,bookmark_order,unread') as $json) {
@@ -36,6 +35,7 @@ class Groups extends AbstractFacebookThread {
                         )
                     );
                     $rawEndpoint->createNew(
+                        $this->worker->getSourceId(),
                         'groups',
                         $buffer
                     );

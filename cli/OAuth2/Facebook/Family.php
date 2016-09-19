@@ -16,7 +16,6 @@ class Family extends AbstractFacebookThread {
         try {
             $rawEndpoint = $this->worker->getSDK()
                 ->Profile($this->worker->getUserName())
-                ->Source($this->worker->getSourceId())
                 ->Raw;
             $buffer = [];
             foreach ($this->fetchAll('/me/family', 'fields=id,first_name,last_name,relationship,picture') as $json) {
@@ -36,6 +35,7 @@ class Family extends AbstractFacebookThread {
                         )
                     );
                     $rawEndpoint->createNew(
+                        $this->worker->getSourceId(),
                         'family',
                         $buffer
                     );

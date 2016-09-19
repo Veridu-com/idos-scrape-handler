@@ -16,7 +16,6 @@ class Tagged extends AbstractFacebookThread {
         try {
             $rawEndpoint = $this->worker->getSDK()
                 ->Profile($this->worker->getUserName())
-                ->Source($this->worker->getSourceId())
                 ->Raw;
             $buffer = [];
             foreach ($this->fetchAll('/me/tagged', 'fields=from,to,message,message_tags,picture,link,name,caption,description,icon,privacy,type,status_type,created_time,updated_time,is_hidden,is_expired,likes,comments') as $json) {
@@ -36,6 +35,7 @@ class Tagged extends AbstractFacebookThread {
                         )
                     );
                     $rawEndpoint->createNew(
+                        $this->worker->getSourceId(),
                         'tagged',
                         $buffer
                     );

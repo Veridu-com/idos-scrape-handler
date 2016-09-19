@@ -21,7 +21,6 @@ class Profile extends AbstractHandlerThread {
         try {
             $rawEndpoint = $this->worker->getSDK()
                 ->Profile($this->worker->getUserName())
-                ->Source($this->worker->getSourceId())
                 ->Raw;
             // Retrieve profile data from Facebook's API
             $rawBuffer = $this->worker->getService()->request('/me?fields=id,first_name,last_name,gender,locale,languages,age_range,verified,birthday,education,email,hometown,location,picture.width(1024).height(1024),relationship_status,significant_other,work,friends');
@@ -54,6 +53,7 @@ class Profile extends AbstractHandlerThread {
                     )
                 );
                 $rawEndpoint->createNew(
+                    $this->worker->getSourceId(),
                     'profile',
                     $parsedBuffer
                 );

@@ -16,10 +16,9 @@ class Posts extends AbstractFacebookThread {
         try {
             $rawEndpoint = $this->worker->getSDK()
                 ->Profile($this->worker->getUserName())
-                ->Source($this->worker->getSourceId())
                 ->Raw;
             $buffer = [];
-            foreach ($this->fetchAll('/me/posts', 'fields=from,message,picture,link,name,caption,description,icon,privacy,type,status_type,application,created_time,updated_time,is_hidden,is_expired,likes,comments') as $json) {
+            foreach ($this->fetchAll('/me/posts', 'fields=from,message,picture,link,name,caption,description,icon,privacy,type,status_type,application,created_time,updated_time,is_hidden,is_expired,likes,comments&limit=1000') as $json) {
                 if ($json === false) {
                     break;
                 }
@@ -36,6 +35,7 @@ class Posts extends AbstractFacebookThread {
                         )
                     );
                     $rawEndpoint->createNew(
+                        $this->worker->getSourceId(),
                         'posts',
                         $buffer
                     );
@@ -45,6 +45,7 @@ class Posts extends AbstractFacebookThread {
             return true;
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
+            echo $exception->getMessage();
 
             return false;
         }
