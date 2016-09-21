@@ -34,7 +34,7 @@ class Photos extends AbstractFacebookThread {
                             count($buffer)
                         )
                     );
-                    $rawEndpoint->createNew(
+                    $rawEndpoint->createOrUpdate(
                         $this->worker->getSourceId(),
                         'photos',
                         $buffer

@@ -75,6 +75,18 @@ class Daemon extends Command {
 
         $logger->debug('Registering Worker Function "scrape"');
 
+        /*
+         * Payload content:
+         *  - accessToken
+         *  - apiVersion
+         *  - appKey
+         *  - appSecret
+         *  - providerName
+         *  - publicKey
+         *  - sourceId
+         *  - tokenSecret
+         *  - userName
+         */
         $gearman->addFunction(
             'scrape',
             function (\GearmanJob $job) use ($logger) {

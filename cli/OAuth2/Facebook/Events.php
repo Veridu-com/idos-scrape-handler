@@ -34,7 +34,7 @@ class Events extends AbstractFacebookThread {
                             count($buffer)
                         )
                     );
-                    $rawEndpoint->createNew(
+                    $rawEndpoint->createOrUpdate(
                         $this->worker->getSourceId(),
                         'events',
                         $buffer
