@@ -16,7 +16,6 @@ class Likes extends AbstractFacebookThread {
         try {
             $rawEndpoint = $this->worker->getSDK()
                 ->Profile($this->worker->getUserName())
-                ->Source($this->worker->getSourceId())
                 ->Raw;
             $buffer = [];
             foreach ($this->fetchAll('/me/likes', 'fields=name,category,category_list,created_time') as $json) {
@@ -35,7 +34,8 @@ class Likes extends AbstractFacebookThread {
                             count($buffer)
                         )
                     );
-                    $rawEndpoint->createNew(
+                    $rawEndpoint->createOrUpdate(
+                        $this->worker->getSourceId(),
                         'likes',
                         $buffer
                     );

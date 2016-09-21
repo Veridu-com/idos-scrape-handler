@@ -52,7 +52,7 @@ class Profile extends AbstractHandlerThread {
                         static::class
                     )
                 );
-                $rawEndpoint->createNew(
+                $rawEndpoint->createOrUpdate(
                     $this->worker->getSourceId(),
                     'profile',
                     $parsedBuffer
