@@ -115,7 +115,7 @@ class Schedule implements HandlerInterface {
             json_encode($command)
         );
         if ($this->gearman->returnCode() === \GEARMAN_SUCCESS) {
-            $this->emitter->emit(new JobScheduled($command));
+            $this->emitter->emit(new JobScheduled($command, $task));
 
             return;
         }

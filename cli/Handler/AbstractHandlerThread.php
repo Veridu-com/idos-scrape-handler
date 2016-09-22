@@ -66,6 +66,9 @@ abstract class AbstractHandlerThread extends \Thread {
     public function run() {
         $startTime = microtime(true);
         if (! $this->execute()) {
+            $this->worker->getLogger()->error(
+                sprintf('[%s] Error: %s', static::class, $this->lastError)
+            );
             $this->failed = true;
         }
 
