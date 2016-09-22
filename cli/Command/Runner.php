@@ -111,19 +111,11 @@ class Runner extends Command {
             $input->getArgument('apiVersion') ?: ''
         );
 
-        // idOS SDK
-        $auth = new \idOS\Auth\CredentialToken(
-            $input->getArgument('publicKey'),
-            __HNDKEY__,
-            __HNDSEC__
-        );
-        $sdk = \idOS\SDK::create($auth);
-
         $provider->handle(
-            $sdk,
+            $input->getArgument('publicKey'),
             $input->getArgument('userName'),
-            $input->getArgument('sourceId'),
-            $input->getArgument('dryRun') ?: false
+            (int) $input->getArgument('sourceId'),
+            $input->getArgument('dryRun') ? true : false
         );
 
         $logger->debug('Runner completed');

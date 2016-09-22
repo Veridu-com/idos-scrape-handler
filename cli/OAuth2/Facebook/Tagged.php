@@ -23,9 +23,21 @@ class Tagged extends AbstractFacebookThread {
                     break;
                 }
 
-                if ((! $this->worker->isDryRun()) && (count($json))) {
-                    // Send post data to idOS API
+                if (count($json)) {
                     $buffer = array_merge($buffer, $json);
+                    if ($this->worker->isDryRun()) {
+                        $this->worker->getLogger()->debug(
+                            sprintf(
+                                '[%s] Retrieved %d new items (%d total)',
+                                static::class,
+                                count($json),
+                                count($buffer)
+                            )
+                        );
+                        continue;
+                    }
+
+                    // Send post data to idOS API
                     $this->worker->getLogger()->debug(
                         sprintf(
                             '[%s] Uploading %d new items (%d total)',
