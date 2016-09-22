@@ -13,6 +13,52 @@ class Friends extends AbstractFacebookThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
-        return false;
+        try {
+            $rawEndpoint = $this->worker->getSDK()
+                ->Profile($this->worker->getUserName())
+                ->Raw;
+            $buffer = [];
+            foreach ($this->fetchAll('/me/friends', 'fields=id,first_name,last_name,gender,locale,languages,birthday,education,hometown,location,picture.width(1024).height(1024),relationship_status,significant_other,work,friends') as $json) {
+                if ($json === false) {
+                    break;
+                }
+
+                if (count($json)) {
+                    $buffer = array_merge($buffer, $json);
+                    if ($this->worker->isDryRun()) {
+                        $this->worker->getLogger()->debug(
+                            sprintf(
+                                '[%s] Retrieved %d new items (%d total)',
+                                static::class,
+                                count($json),
+                                count($buffer)
+                            )
+                        );
+                        continue;
+                    }
+
+                    // Send post data to idOS API
+                    $this->worker->getLogger()->debug(
+                        sprintf(
+                            '[%s] Uploading %d new items (%d total)',
+                            static::class,
+                            count($json),
+                            count($buffer)
+                        )
+                    );
+                    $rawEndpoint->createOrUpdate(
+                        $this->worker->getSourceId(),
+                        'friends',
+                        $buffer
+                    );
+                }
+            }
+
+            return true;
+        } catch (\Exception $exception) {
+            $this->lastError = $exception->getMessage();
+
+            return false;
+        }
     }
 }
