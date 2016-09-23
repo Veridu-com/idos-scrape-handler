@@ -20,23 +20,23 @@ class Messages extends AbstractHandlerThread {
     public function execute() : bool {
         $slices = [
             [
-                'after' => strtotime('45 days ago'),
+                'after'  => strtotime('45 days ago'),
                 'before' => strtotime('today')
             ],
             [
-                'after' => strtotime('90 days ago'),
+                'after'  => strtotime('90 days ago'),
                 'before' => strtotime('46 days ago')
             ],
             [
-                'after' => strtotime('405 days ago'),
+                'after'  => strtotime('405 days ago'),
                 'before' => strtotime('91 days ago')
             ],
             [
-                'after' => strtotime('1079 days ago'),
+                'after'  => strtotime('1079 days ago'),
                 'before' => strtotime('406 days ago')
             ],
             [
-                'after' => strtotime('1080 days ago'),
+                'after'  => strtotime('1080 days ago'),
                 'before' => strtotime('3000 days ago')
             ]
         ];
@@ -81,7 +81,7 @@ class Messages extends AbstractHandlerThread {
             }
 
             foreach ($parsedBuffer['threads'] as $thread) {
-                $data = $this->worker->getService()->request("https://www.googleapis.com/gmail/v1/users/me/threads/{$thread['id']}?format=metadata");
+                $data       = $this->worker->getService()->request("https://www.googleapis.com/gmail/v1/users/me/threads/{$thread['id']}?format=metadata");
                 $jsonThread = json_decode($data, true);
 
                 if (empty($jsonThread)) {

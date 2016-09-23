@@ -8,14 +8,12 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Google\Drive;
 
-use Cli\Handler\AbstractHandlerThread;
-use Cli\OAuth2\Facebook\AbstractFacebookThread;
+use Cli\OAuth2\Google\AbstractGoogleThread;
 
 /**
  * Google Drive File's Profile Scraper.
  */
-
-class Files extends AbstractFacebookThread {
+class Files extends AbstractGoogleThread {
     /**
      * {@inheritdoc}
      */
@@ -31,7 +29,6 @@ class Files extends AbstractFacebookThread {
                 }
 
                 if (isset($json['items']) && count($json)) {
-
                     foreach ($json['items'] as $item) {
                         if (isset($item['exportLinks'])) {
                             unset($item['exportLinks']);

@@ -8,13 +8,10 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Spotify;
 
-use Cli\Handler\AbstractHandlerThread;
-use Cli\OAuth2\Facebook\AbstractFacebookThread;
-
 /**
  * Spotify Playlist's Profile Scraper.
  */
-class Playlists extends AbstractFacebookThread {
+class Playlists extends AbstractSpotifyThread {
     /**
      * {@inheritdoc}
      */

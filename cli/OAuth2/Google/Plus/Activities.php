@@ -22,7 +22,7 @@ class Activities extends AbstractHandlerThread {
             $rawEndpoint = $this->worker->getSDK()
                 ->Profile($this->worker->getUserName())
                 ->Raw;
-            // Retrieve profile data from Facebook's API
+            // Retrieve profile data from Google's API
             $rawBuffer = $this->worker->getService()->request('https://www.googleapis.com/plus/v1/people/me/activities/public?maxResults=100');
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
@@ -67,11 +67,11 @@ class Activities extends AbstractHandlerThread {
 
         $buffer = [];
         do {
-            if (!isset($parsedBuffer['pageToken'])) {
+            if (! isset($parsedBuffer['pageToken'])) {
                 break;
             }
 
-            $data = $this->worker->getService()->request('https://www.googleapis.com/plus/v1/people/me/activities/public?maxResults=100&pageToken=' . $parsedBuffer['pageToken']);
+            $data         = $this->worker->getService()->request('https://www.googleapis.com/plus/v1/people/me/activities/public?maxResults=100&pageToken=' . $parsedBuffer['pageToken']);
             $parsedBuffer = json_decode($data, true);
 
             if ($parsedBuffer === null) {
@@ -111,7 +111,7 @@ class Activities extends AbstractHandlerThread {
                     }
                 }
             }
-        } while (!empty($parsedBuffer['items']));
+        } while (! empty($parsedBuffer['items']));
 
         return true;
     }

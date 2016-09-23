@@ -8,13 +8,12 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Google\GMail;
 
-use Cli\Handler\AbstractHandlerThread;
-use Cli\OAuth2\Facebook\AbstractFacebookThread;
+use Cli\OAuth2\Google\AbstractGoogleThread;
 
 /**
  * Gmail Labels's Profile Scraper.
  */
-class Labels extends AbstractFacebookThread {
+class Labels extends AbstractGoogleThread {
     /**
      * {@inheritdoc}
      */
@@ -39,8 +38,8 @@ class Labels extends AbstractFacebookThread {
             }
 
             $labels = [];
-            foreach ($buffer['labels'] as $label)  {
-                $data = $this->worker->getService()->request("https://www.googleapis.com/gmail/v1/users/me/labels/{$label['id']}");
+            foreach ($buffer['labels'] as $label) {
+                $data      = $this->worker->getService()->request("https://www.googleapis.com/gmail/v1/users/me/labels/{$label['id']}");
                 $jsonLabel = json_decode($data, true);
 
                 if ($jsonLabel === false) {
@@ -48,7 +47,7 @@ class Labels extends AbstractFacebookThread {
                     break;
                 }
 
-                $labels[]= $jsonLabel;
+                $labels[] = $jsonLabel;
             }
 
             if ($this->worker->isDryRun()) {
@@ -60,7 +59,8 @@ class Labels extends AbstractFacebookThread {
                         count($labels)
                     )
                 );
-                continue;
+
+                return true;
             }
 
             // Send post data to idOS API
@@ -77,6 +77,7 @@ class Labels extends AbstractFacebookThread {
                 'labels',
                 $labels
             );
+
             return true;
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();

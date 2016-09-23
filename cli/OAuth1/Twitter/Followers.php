@@ -8,12 +8,10 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth1\Twitter;
 
-use Cli\OAuth2\Facebook\AbstractFacebookThread;
-
 /**
  * Twitter Folowers's Profile Scraper.
  */
-class Followers extends AbstractFacebookThread {
+class Followers extends AbstractTwitterThread {
     /**
      * {@inheritdoc}
      */

@@ -43,8 +43,8 @@ class Metadata extends AbstractHandlerThread {
             return false;
         }
 
-        if (!isset($parsedBuffer['contents']) || count($parsedBuffer['contents']) == 0) {
-            $this->lastError = "Root listing has no items";
+        if (! isset($parsedBuffer['contents']) || count($parsedBuffer['contents']) == 0) {
+            $this->lastError = 'Root listing has no items';
 
             return false;
         }
@@ -57,10 +57,10 @@ class Metadata extends AbstractHandlerThread {
             }
         }
 
-        $contents[] = array('path' => $parsedBuffer['path'], 'contents' => $parsedBuffer['contents']);
+        $contents[] = ['path' => $parsedBuffer['path'], 'contents' => $parsedBuffer['contents']];
 
         foreach ($dirs as $path) {
-            $rawPathBuffer = $this->worker->getService()->request("/metadata/auto/$path?&list=true&include_media_info=true&file_limit=25000");
+            $rawPathBuffer    = $this->worker->getService()->request("/metadata/auto/$path?&list=true&include_media_info=true&file_limit=25000");
             $parsedPathBuffer = json_decode($rawPathBuffer, true);
 
             if (empty($parsedPathBuffer)) {
@@ -77,7 +77,7 @@ class Metadata extends AbstractHandlerThread {
 
             if (isset($parsedPathBuffer['contents']) && count($parsedPathBuffer['contents']) != 0) {
                 $contents[] = [
-                    'path' => $parsedPathBuffer['path'],
+                    'path'     => $parsedPathBuffer['path'],
                     'contents' => $parsedPathBuffer['contents']
                 ];
             }

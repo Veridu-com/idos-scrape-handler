@@ -75,8 +75,8 @@ class Statuses extends AbstractHandlerThread {
         }
 
         do {
-            $lastId = $minId;
-            $data = $this->worker->getService()->request('/statuses/user_timeline.json?count=200&max_id=' . gmp_strval(gmp_sub($minId, -1)));
+            $lastId       = $minId;
+            $data         = $this->worker->getService()->request('/statuses/user_timeline.json?count=200&max_id=' . gmp_strval(gmp_sub($minId, -1)));
             $parsedBuffer = json_decode($data, true);
 
             if ($parsedBuffer === null) {
