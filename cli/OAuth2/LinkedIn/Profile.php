@@ -15,33 +15,57 @@ use Cli\Handler\AbstractHandlerThread;
  */
 class Profile extends AbstractHandlerThread {
     /**
-     * Thread run method.
-     *
-     * @return void
+     * {@inheritdoc}
      */
-    public function run() {
-        $this->logger->debug('Profile Scraping Started');
+    public function execute() : bool {
         try {
-            $this->rawBuffer = $this->service->request('/people/~:(id,first-name,last-name,phonetic-first-name,phonetic-last-name,location,num-connections-capped,positions,picture-url,picture-urls::(original),public-profile-url,email-address,last-modified-timestamp,educations,courses,volunteer,three-current-positions,three-past-positions,num-recommenders,recommendations-received,following,date-of-birth,phone-numbers,main-address,twitter-accounts)?format=json');
+            $rawEndpoint = $this->worker->getSDK()
+                ->Profile($this->worker->getUserName())
+                ->Raw;
+            // Retrieve profile data from Linkedin's API
+            $rawBuffer = $this->worker->getService()->request('/people/~:(id,first-name,last-name,phonetic-first-name,phonetic-last-name,location,num-connections-capped,positions,picture-url,picture-urls::(original),public-profile-url,email-address,last-modified-timestamp,educations,courses,volunteer,three-current-positions,three-past-positions,num-recommenders,recommendations-received,following,date-of-birth,phone-numbers,main-address,twitter-accounts)?format=json');
         } catch (\Exception $exception) {
-            $this->logger->error($exception->getMessage());
+            $this->lastError = $exception->getMessage();
 
-            return;
+            return false;
         }
 
-        $this->parsedBuffer = json_decode($this->rawBuffer, true);
-        if (empty($this->parsedBuffer)) {
-            $this->lastError = 'Unknown error!';
+        $parsedBuffer = json_decode($rawBuffer, true);
+        if ($parsedBuffer === null) {
+            $this->lastError = 'Failed to parse response';
 
-            return;
+            return false;
         }
 
-        if (isset($this->parsedBuffer['errorCode'])) {
-            $this->lastError = $this->parsedBuffer['message'];
+        if (isset($parsedBuffer['errorCode'])) {
+            $this->lastError = $parsedBuffer['message'];
 
-            return;
+            return false;
         }
 
-        $this->logger->debug('Profile Scraping Finished');
+        $parsedBuffer['updated'] = time();
+
+        if (! $this->worker->isDryRun()) {
+            // Send profile data to idOS API
+            try {
+                $this->worker->getLogger()->debug(
+                    sprintf(
+                        '[%s] Uploading profile',
+                        static::class
+                    )
+                );
+                $rawEndpoint->createOrUpdate(
+                    $this->worker->getSourceId(),
+                    'profile',
+                    $parsedBuffer
+                );
+            } catch (\Exception $exception) {
+                $this->lastError = $exception->getMessage();
+
+                return false;
+            }
+        }
+
+        return true;
     }
 }
