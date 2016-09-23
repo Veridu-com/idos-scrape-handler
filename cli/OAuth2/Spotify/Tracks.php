@@ -8,13 +8,10 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Spotify;
 
-use Cli\Handler\AbstractHandlerThread;
-use Cli\OAuth2\Facebook\AbstractFacebookThread;
-
 /**
  * Spotify Tracks's Profile Scraper.
  */
-class Tracks extends AbstractFacebookThread {
+class Tracks extends AbstractSpotifyThread {
     /**
      * {@inheritdoc}
      */
@@ -24,6 +21,7 @@ class Tracks extends AbstractFacebookThread {
                 ->Profile($this->worker->getUserName())
                 ->Raw;
 
+            // FIXME
             $rawPlaylists = $rawEndpoint->getOne('playlists');
 
             if ($rawPlaylists === null) {
@@ -34,7 +32,7 @@ class Tracks extends AbstractFacebookThread {
 
             $buffer = [];
             foreach ($rawPlaylists as $rawPlaylist) {
-                if (!isset($playlist['tracks']['href'])) {
+                if (! isset($playlist['tracks']['href'])) {
                     continue;
                 }
 
@@ -45,8 +43,8 @@ class Tracks extends AbstractFacebookThread {
 
                     if (count($track)) {
                         foreach ($track as &$item) {
-                            if (!isset($item['playlist'])) {
-                                $item['playlists'] = array();
+                            if (! isset($item['playlist'])) {
+                                $item['playlists'] = [];
                             }
 
                             $item['playlists'][] = $playlist['id'];

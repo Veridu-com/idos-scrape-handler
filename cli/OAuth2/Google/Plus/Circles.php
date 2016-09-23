@@ -43,7 +43,7 @@ class Circles extends AbstractHandlerThread {
             return false;
         }
 
-        $circles = array();
+        $circles = [];
         foreach ($parsedBuffer['items'] as $friend) {
             $circles[] = $friend['id'];
         }

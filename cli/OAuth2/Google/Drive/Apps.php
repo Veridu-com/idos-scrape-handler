@@ -8,13 +8,12 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Google\Drive;
 
-use Cli\Handler\AbstractHandlerThread;
-use Cli\OAuth2\Facebook\AbstractFacebookThread;
+use Cli\OAuth2\Google\AbstractGoogleThread;
 
 /**
  * Google Drive App's Profile Scraper.
  */
-class Apps extends AbstractFacebookThread {
+class Apps extends AbstractGoogleThread {
     /**
      * {@inheritdoc}
      */

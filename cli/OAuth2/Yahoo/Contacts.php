@@ -30,8 +30,8 @@ class Contacts extends AbstractHandlerThread {
         }
 
         $contacts = [];
-        $flag = true;
-        $start = 0;
+        $flag     = true;
+        $start    = 0;
         try {
             while ($flag) {
                 $rawBuffer = $this->worker->getService()->request("https://social.yahooapis.com/v1/user/{$this->worker->getSourceId()}/contacts;start=0;count=50?format=json&view=tinyusercard");
@@ -52,8 +52,7 @@ class Contacts extends AbstractHandlerThread {
                 }
                 */
 
-                if (
-                    !isset($parsedBuffer['contacts']['total'], $parsedBuffer['contacts']['count'])
+                if (! isset($parsedBuffer['contacts']['total'], $parsedBuffer['contacts']['count'])
                     || $parsedBuffer['contacts']['total'] == 0
                     || $parsedBuffer['contacts']['count'] == 0
                 ) {
