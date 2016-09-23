@@ -9,8 +9,62 @@ declare(strict_types = 1);
 namespace Cli\OAuth2\Google\Drive;
 
 use Cli\Handler\AbstractHandlerThread;
+use Cli\OAuth2\Facebook\AbstractFacebookThread;
 
-class Apps extends AbstractHandlerThread {
-    public function run() {
+/**
+ * Google Drive App's Profile Scraper.
+ */
+class Apps extends AbstractFacebookThread {
+    /**
+     * {@inheritdoc}
+     */
+    public function execute() : bool {
+        try {
+            $rawEndpoint = $this->worker->getSDK()
+                ->Profile($this->worker->getUserName())
+                ->Raw;
+            $buffer = [];
+            foreach ($this->fetchAll('https://www.googleapis.com/drive/v2/apps', '') as $json) {
+                if ($json === false) {
+                    break;
+                }
+
+                if (count($json)) {
+                    $buffer = array_merge($buffer, $json);
+                    if ($this->worker->isDryRun()) {
+                        $this->worker->getLogger()->debug(
+                            sprintf(
+                                '[%s] Retrieved %d new items (%d total)',
+                                static::class,
+                                count($json),
+                                count($buffer)
+                            )
+                        );
+                        continue;
+                    }
+
+                    // Send post data to idOS API
+                    $this->worker->getLogger()->debug(
+                        sprintf(
+                            '[%s] Uploading %d new items (%d total)',
+                            static::class,
+                            count($json),
+                            count($buffer)
+                        )
+                    );
+                    $rawEndpoint->createOrUpdate(
+                        $this->worker->getSourceId(),
+                        'apps',
+                        $buffer
+                    );
+                }
+            }
+
+            return true;
+        } catch (\Exception $exception) {
+            $this->lastError = $exception->getMessage();
+
+            return false;
+        }
     }
 }

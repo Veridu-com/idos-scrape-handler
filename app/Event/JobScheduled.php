@@ -35,7 +35,7 @@ class JobScheduled extends AbstractEvent {
      *
      * @return void
      */
-    public function __construct(Job $job, \GearmanTask $task) {
+    public function __construct(Job $job, string $task) {
         $this->job  = $job;
         $this->task = $task;
     }
