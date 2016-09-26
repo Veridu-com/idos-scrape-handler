@@ -44,6 +44,12 @@ class Contacts extends AbstractHandlerThread {
             return false;
         }
 
+        if (!isset($parsedBuffer['feed']) && !isset($parsedBuffer['feed']['entry'])) {
+            $this->lastError = 'No entries found';
+
+            return false;
+        }
+
         if (! $this->worker->isDryRun()) {
             // Send contacts data to idOS API
             try {
