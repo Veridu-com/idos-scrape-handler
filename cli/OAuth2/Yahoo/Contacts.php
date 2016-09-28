@@ -34,7 +34,25 @@ class Contacts extends AbstractHandlerThread {
         $start    = 0;
         try {
             while ($flag) {
-                $rawBuffer = $this->worker->getService()->request("https://social.yahooapis.com/v1/user/{$this->worker->getSourceId()}/contacts;start=0;count=50?format=json&view=tinyusercard");
+
+                $idBuffer = $this->worker->getService()->request('https://social.yahooapis.com/v1/user/me/profile?format=json');
+                $parsedIdBuffer = json_decode($idBuffer, true);
+
+                if ($parsedIdBuffer === null) {
+                    $this->lastError = 'Failed to parse response for user id';
+
+                    return false;
+                }
+
+                if (isset($parsedIdBuffer['error'])) {
+                    $this->lastError = $parsedIdBuffer['error']['description'];
+
+                    return false;
+                }
+
+                $profileId = $parsedIdBuffer['profile']['guid'];
+
+                $rawBuffer = $this->worker->getService()->request("https://social.yahooapis.com/v1/user/{$profileId}/contacts;start=0;count=50?format=json&view=tinyusercard");
 
                 $parsedBuffer = json_decode($rawBuffer, true);
                 if ($parsedBuffer === null) {
@@ -43,14 +61,11 @@ class Contacts extends AbstractHandlerThread {
                     return false;
                 }
 
-                // there is no info about error reporting via json in
-                // https://developer.yahoo.com/social/rest_api_guide/
-                /*if (isset($parsedBuffer['error'])) {
-                    $this->lastError = $parsedBuffer['error']['message'];
+                if (isset($parsedBuffer['error'])) {
+                    $this->lastError = $parsedBuffer['error']['description'];
 
                     return false;
                 }
-                */
 
                 if (! isset($parsedBuffer['contacts']['total'], $parsedBuffer['contacts']['count'])
                     || $parsedBuffer['contacts']['total'] == 0

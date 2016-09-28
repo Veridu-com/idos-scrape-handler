@@ -21,8 +21,24 @@ class Tracks extends AbstractSpotifyThread {
                 ->Profile($this->worker->getUserName())
                 ->Raw;
 
-            // FIXME
-            $rawPlaylists = $rawEndpoint->getOne('playlists');
+            $rawIdBuffer = $this->worker->getService()->request('/me');
+
+            $parsedIdBuffer = json_decode($rawIdBuffer, true);
+            if ($parsedIdBuffer === null) {
+                $this->lastError = 'Failed to parse id response';
+
+                return false;
+            }
+
+            if (isset($parsedIdBuffer['error'])) {
+                $this->lastError = $parsedIdBuffer['error']['message'];
+
+                return false;
+            }
+
+            $profileId = $parsedIdBuffer['id'];
+
+            $rawPlaylists = $this->fetchAll('/users/' . $profileId . '/playlists', '');
 
             if ($rawPlaylists === null) {
                 $this->lastError = 'Failed to parse response';
@@ -31,53 +47,55 @@ class Tracks extends AbstractSpotifyThread {
             }
 
             $buffer = [];
-            foreach ($rawPlaylists as $rawPlaylist) {
-                if (! isset($playlist['tracks']['href'])) {
-                    continue;
-                }
-
-                foreach ($this->fetchAll($playlist['tracks']['href']) as $track) {
-                    if ($track === false) {
+            foreach ($rawPlaylists as $rawPlaylistArray) {
+                foreach ($rawPlaylistArray as $rawPlaylist) {
+                    if (! isset($rawPlaylist['tracks']['href'])) {
                         continue;
                     }
 
-                    if (count($track)) {
-                        foreach ($track as &$item) {
-                            if (! isset($item['playlist'])) {
-                                $item['playlists'] = [];
-                            }
-
-                            $item['playlists'][] = $playlist['id'];
-                        }
-
-                        $buffer = array_merge($buffer, $track);
-
-                        if ($this->worker->isDryRun()) {
-                            $this->worker->getLogger()->debug(
-                                sprintf(
-                                    '[%s] Retrieved %d new items (%d total)',
-                                    static::class,
-                                    count($json),
-                                    count($buffer)
-                                )
-                            );
+                    foreach ($this->fetchAll($rawPlaylist['tracks']['href']) as $track) {
+                        if ($track === false) {
                             continue;
                         }
 
-                        // Send post data to idOS API
-                        $this->worker->getLogger()->debug(
-                            sprintf(
-                                '[%s] Uploading %d new items (%d total)',
-                                static::class,
-                                count($json),
-                                count($buffer)
-                            )
-                        );
-                        $rawEndpoint->createOrUpdate(
-                            $this->worker->getSourceId(),
-                            'tracks',
-                            $buffer
-                        );
+                        if (count($track)) {
+                            foreach ($track as &$item) {
+                                if (! isset($item['playlist'])) {
+                                    $item['playlists'] = [];
+                                }
+
+                                $item['playlists'][] = $rawPlaylist['id'];
+                            }
+
+                            $buffer = array_merge($buffer, $track);
+
+                            if ($this->worker->isDryRun()) {
+                                $this->worker->getLogger()->debug(
+                                    sprintf(
+                                        '[%s] Retrieved %d new items (%d total)',
+                                        static::class,
+                                        count($rawPlaylists),
+                                        count($buffer)
+                                    )
+                                );
+                                continue;
+                            }
+
+                            // Send post data to idOS API
+                            $this->worker->getLogger()->debug(
+                                sprintf(
+                                    '[%s] Uploading %d new items (%d total)',
+                                    static::class,
+                                    count($rawPlaylists),
+                                    count($buffer)
+                                )
+                            );
+                            $rawEndpoint->createOrUpdate(
+                                $this->worker->getSourceId(),
+                                'tracks',
+                                $buffer
+                            );
+                        }
                     }
                 }
             }

@@ -21,7 +21,7 @@ class Friends extends AbstractTwitterThread {
                 ->Profile($this->worker->getUserName())
                 ->Raw;
             $buffer = [];
-            foreach ($this->fetchAll('/friends/list.json', 'include_user_entities =true&count=200') as $json) {
+            foreach ($this->fetchAll('/friends/list.json', 'include_user_entities=true&count=200') as $json) {
                 if ($json === false) {
                     break;
                 }

@@ -21,7 +21,25 @@ class Playlists extends AbstractSpotifyThread {
                 ->Profile($this->worker->getUserName())
                 ->Raw;
             $playlists = [];
-            foreach ($this->fetchAll('/users/' . $this->worker->getSourceId() . '/playlists', '') as $json) {
+
+            $rawIdBuffer = $this->worker->getService()->request('/me');
+
+            $parsedIdBuffer = json_decode($rawIdBuffer, true);
+            if ($parsedIdBuffer === null) {
+                $this->lastError = 'Failed to parse id response';
+
+                return false;
+            }
+
+            if (isset($parsedIdBuffer['error'])) {
+                $this->lastError = $parsedIdBuffer['error']['message'];
+
+                return false;
+            }
+
+            $profileId = $parsedIdBuffer['id'];
+
+            foreach ($this->fetchAll('/users/' . $profileId . '/playlists', '') as $json) {
                 if ($json === false) {
                     break;
                 }
