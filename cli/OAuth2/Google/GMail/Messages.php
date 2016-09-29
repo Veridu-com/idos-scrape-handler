@@ -71,7 +71,7 @@ class Messages extends AbstractHandlerThread {
             }
 
             if (isset($parsedBuffer['error'])) {
-                $this->lastError = $parsedBuffer['error_description'];
+                $this->lastError = $parsedBuffer['error']['message'];
 
                 return false;
             }

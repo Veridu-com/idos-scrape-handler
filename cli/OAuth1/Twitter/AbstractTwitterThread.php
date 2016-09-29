@@ -11,7 +11,7 @@ namespace Cli\OAuth1\Twitter;
 use Cli\Handler\AbstractHandlerThread;
 
 abstract class AbstractTwitterThread extends AbstractHandlerThread {
-    protected function fetchAll(string $url, string $field, string $param = '') : \Generator {
+    protected function fetchAll(string $url, string $param = '') : \Generator {
         $param  = sprintf('?%s', ltrim($param, '?'));
         $buffer = [];
         $cursor = -1;
@@ -27,17 +27,17 @@ abstract class AbstractTwitterThread extends AbstractHandlerThread {
                     throw new \Exception($json['errors'][0]['message']);
                 }
 
-                if (! count($json[$field])) {
+                if (! count($json)) {
                     break;
                 }
 
-                $buffer = array_merge($buffer, $json[$field]);
+                $buffer = array_merge($buffer, $json);
                 if (count($buffer) > 100) {
                     yield $buffer;
                     $buffer = [];
                 }
 
-                if (! isset($json['next_cursor_str'])) {
+                if (! isset($json['next_cursor_str']) || $json['next_cursor_str'] === "0") {
                     break;
                 }
 

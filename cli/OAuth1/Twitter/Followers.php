@@ -21,7 +21,7 @@ class Followers extends AbstractTwitterThread {
                 ->Profile($this->worker->getUserName())
                 ->Raw;
             $buffer = [];
-            foreach ($this->fetchAll('/followers/ids.json', 'ids', 'stringify_ids=true&count=5000') as $json) {
+            foreach ($this->fetchAll('/followers/list.json', 'count=200&include_entities=true') as $json) {
                 if ($json === false) {
                     break;
                 }
