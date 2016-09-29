@@ -26,11 +26,11 @@ abstract class AbstractSpotifyThread extends AbstractHandlerThread {
                     throw new \Exception($json['error']['message']);
                 }
 
-                if (! count($json['data'])) {
+                if (! count($json['items'])) {
                     break;
                 }
 
-                $buffer = array_merge($buffer, $json['data']);
+                $buffer = array_merge($buffer, $json['items']);
                 if (count($buffer) > 100) {
                     yield $buffer;
                     $buffer = [];

@@ -38,7 +38,7 @@ class Profile extends AbstractHandlerThread {
         }
 
         if (isset($parsedBuffer['error'])) {
-            $this->lastError = $parsedBuffer['error']['message'];
+            $this->lastError = $parsedBuffer['error']['description'];
 
             return false;
         }
