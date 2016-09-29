@@ -37,7 +37,7 @@ abstract class AbstractTwitterThread extends AbstractHandlerThread {
                     $buffer = [];
                 }
 
-                if (! isset($json['next_cursor_str'])) {
+                if (! isset($json['next_cursor_str']) || $json['next_cursor_str'] === "0") {
                     break;
                 }
 

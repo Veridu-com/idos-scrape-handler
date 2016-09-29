@@ -22,18 +22,17 @@ class Friends extends AbstractTwitterThread {
                 ->Raw;
             $buffer = [];
             foreach ($this->fetchAll('/friends/list.json', 'include_user_entities=true&count=200') as $json) {
-                if ($json === false) {
+                if ($json === false || ! isset($json['users']) ) {
                     break;
                 }
-
-                if (count($json)) {
-                    $buffer = array_merge($buffer, $json);
+                if (count($json['users'])) {
+                    $buffer = array_merge($buffer, $json['users']);
                     if ($this->worker->isDryRun()) {
                         $this->worker->getLogger()->debug(
                             sprintf(
                                 '[%s] Retrieved %d new items (%d total)',
                                 static::class,
-                                count($json),
+                                count($json['users']),
                                 count($buffer)
                             )
                         );
@@ -45,7 +44,7 @@ class Friends extends AbstractTwitterThread {
                         sprintf(
                             '[%s] Uploading %d new items (%d total)',
                             static::class,
-                            count($json),
+                            count($json['users']),
                             count($buffer)
                         )
                     );
