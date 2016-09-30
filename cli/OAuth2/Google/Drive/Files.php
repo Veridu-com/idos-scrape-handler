@@ -57,7 +57,7 @@ class Files extends AbstractGoogleThread {
                             count($buffer)
                         )
                     );
-                    $rawEndpoint->createOrUpdate(
+                    $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'files',
                         $buffer

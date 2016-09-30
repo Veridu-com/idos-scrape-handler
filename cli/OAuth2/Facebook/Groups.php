@@ -46,7 +46,7 @@ class Groups extends AbstractFacebookThread {
                             count($buffer)
                         )
                     );
-                    $rawEndpoint->createOrUpdate(
+                    $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'groups',
                         $buffer

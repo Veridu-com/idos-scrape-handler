@@ -19,7 +19,8 @@ $app
             [
                 'users' => [
                     __AUTHUSER__ => __AUTHPASS__
-                ]
+                ],
+                'secure' => false
             ]
         )
     )

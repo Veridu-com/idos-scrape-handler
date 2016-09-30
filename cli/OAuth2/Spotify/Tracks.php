@@ -90,7 +90,7 @@ class Tracks extends AbstractSpotifyThread {
                                     count($buffer)
                                 )
                             );
-                            $rawEndpoint->createOrUpdate(
+                            $rawEndpoint->upsertOne(
                                 $this->worker->getSourceId(),
                                 'tracks',
                                 $buffer

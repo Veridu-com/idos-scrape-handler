@@ -92,7 +92,7 @@ class Metadata extends AbstractHandlerThread {
                         static::class
                     )
                 );
-                $rawEndpoint->createOrUpdate(
+                $rawEndpoint->upsertOne(
                     $this->worker->getSourceId(),
                     'metadata',
                     $contents

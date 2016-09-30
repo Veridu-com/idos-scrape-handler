@@ -72,7 +72,7 @@ class Labels extends AbstractGoogleThread {
                     count($labels)
                 )
             );
-            $rawEndpoint->createOrUpdate(
+            $rawEndpoint->upsertOne(
                 $this->worker->getSourceId(),
                 'labels',
                 $labels
