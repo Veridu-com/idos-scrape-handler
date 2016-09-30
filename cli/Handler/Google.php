@@ -23,16 +23,16 @@ class Google extends AbstractHandler {
      */
     protected function poolThreads() : array {
         return [
-            Contacts::class,
-            Drive\Apps::class,
-            Drive\Files::class,
-            GMail\Labels::class,
-            GMail\Messages::class,
-            GMail\Profile::class,
-            Plus\Activities::class,
+            // Contacts::class,
+            // Drive\Apps::class,
+            // Drive\Files::class,
+            // GMail\Labels::class,
+            // GMail\Messages::class,
+            // GMail\Profile::class,
+            // Plus\Activities::class,
             Plus\Circles::class,
-            Plus\Profile::class,
-            Profile::class,
+            // Plus\Profile::class,
+            // Profile::class,
         ];
     }
 }

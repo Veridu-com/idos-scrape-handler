@@ -43,12 +43,13 @@ class Circles extends AbstractHandlerThread {
             return false;
         }
 
-        $circles = [];
-        foreach ($parsedBuffer['items'] as $friend) {
-            $circles[] = $friend['id'];
+        if (!isset($parsedBuffer['items'])) {
+            $this->lastError = 'Unexpected response format';
+
+            return false;
         }
 
-        if (count($circles)) {
+        if (count($parsedBuffer['items'])) {
             if (! $this->worker->isDryRun()) {
                 // Send circle data to idOS API
                 try {
@@ -61,50 +62,12 @@ class Circles extends AbstractHandlerThread {
                     $rawEndpoint->createOrUpdate(
                         $this->worker->getSourceId(),
                         'circles',
-                        $circles
+                        $parsedBuffer['items']
                     );
                 } catch (\Exception $exception) {
                     $this->lastError = $exception->getMessage();
 
                     return false;
-                }
-            }
-
-            foreach ($circles as $friend) {
-                $friendData = $this->worker->getService()->request("https://www.googleapis.com/plus/v1/people/{$friend}");
-                $friendJson = json_decode($friendData, true);
-
-                if ($friendJson === null) {
-                    $this->lastError = 'Failed to parse response';
-
-                    continue;
-                }
-
-                if (isset($friendJson['error'])) {
-                    $this->lastError = $friendJson['error']['message'];
-
-                    continue;
-                }
-
-                if (! $this->worker->isDryRun()) {
-                    // Send plus data to idOS API
-                    try {
-                        $this->worker->getLogger()->debug(
-                            sprintf(
-                                '[%s] Uploading plus',
-                                static::class
-                            )
-                        );
-                        $rawEndpoint->createOrUpdate(
-                            $this->worker->getSourceId(),
-                            'plus',
-                            $friendJson
-                        );
-                    } catch (\Exception $exception) {
-                        $this->lastError = $exception->getMessage();
-
-                        return false;
-                    }
                 }
             }
         }
