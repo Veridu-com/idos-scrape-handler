@@ -46,7 +46,7 @@ class Family extends AbstractFacebookThread {
                             count($buffer)
                         )
                     );
-                    $rawEndpoint->createOrUpdate(
+                    $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'family',
                         $buffer

@@ -46,7 +46,7 @@ class Likes extends AbstractFacebookThread {
                             count($buffer)
                         )
                     );
-                    $rawEndpoint->createOrUpdate(
+                    $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'likes',
                         $buffer

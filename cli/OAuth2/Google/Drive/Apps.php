@@ -51,7 +51,7 @@ class Apps extends AbstractGoogleThread {
                             count($buffer)
                         )
                     );
-                    $rawEndpoint->createOrUpdate(
+                    $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'apps',
                         $buffer

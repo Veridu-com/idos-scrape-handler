@@ -49,7 +49,7 @@ class Followers extends AbstractTwitterThread {
                             count($buffer)
                         )
                     );
-                    $rawEndpoint->createOrUpdate(
+                    $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'followers',
                         $buffer

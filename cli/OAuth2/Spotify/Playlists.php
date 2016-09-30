@@ -70,7 +70,7 @@ class Playlists extends AbstractSpotifyThread {
                             count($playlists)
                         )
                     );
-                    $rawEndpoint->createOrUpdate(
+                    $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'playlists',
                         $playlists

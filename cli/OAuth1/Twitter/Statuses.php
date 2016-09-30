@@ -54,7 +54,7 @@ class Statuses extends AbstractHandlerThread {
                         static::class
                     )
                 );
-                $rawEndpoint->createOrUpdate(
+                $rawEndpoint->upsertOne(
                     $this->worker->getSourceId(),
                     'statuses',
                     $buffer
@@ -103,7 +103,7 @@ class Statuses extends AbstractHandlerThread {
                                 static::class
                             )
                         );
-                        $rawEndpoint->createOrUpdate(
+                        $rawEndpoint->upsertOne(
                             $this->worker->getSourceId(),
                             'statuses',
                             $buffer

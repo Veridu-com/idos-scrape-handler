@@ -105,7 +105,7 @@ class Messages extends AbstractHandlerThread {
                                     static::class
                                 )
                             );
-                            $rawEndpoint->createOrUpdate(
+                            $rawEndpoint->upsertOne(
                                 $this->worker->getSourceId(),
                                 'messages',
                                 $buffer
@@ -130,7 +130,7 @@ class Messages extends AbstractHandlerThread {
                             static::class
                         )
                     );
-                    $rawEndpoint->createOrUpdate(
+                    $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'messages',
                         $buffer

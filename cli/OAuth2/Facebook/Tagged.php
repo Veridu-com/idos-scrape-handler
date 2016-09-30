@@ -46,7 +46,7 @@ class Tagged extends AbstractFacebookThread {
                             count($buffer)
                         )
                     );
-                    $rawEndpoint->createOrUpdate(
+                    $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'tagged',
                         $buffer

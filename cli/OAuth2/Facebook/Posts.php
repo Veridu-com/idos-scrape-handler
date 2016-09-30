@@ -46,7 +46,7 @@ class Posts extends AbstractFacebookThread {
                             count($buffer)
                         )
                     );
-                    $rawEndpoint->createOrUpdate(
+                    $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'posts',
                         $buffer

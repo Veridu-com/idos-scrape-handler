@@ -59,7 +59,7 @@ class Circles extends AbstractHandlerThread {
                             static::class
                         )
                     );
-                    $rawEndpoint->createOrUpdate(
+                    $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'circles',
                         $parsedBuffer['items']
