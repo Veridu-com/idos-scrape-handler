@@ -45,6 +45,7 @@ $container['errorHandler'] = function (ContainerInterface $container) : callable
         ResponseInterface $response,
         \Exception $exception
     ) use ($container) {
+        $settings = $container->get('settings');
         $response = $container
             ->get('httpCache')
             ->denyCache($response);
@@ -58,10 +59,23 @@ $container['errorHandler'] = function (ContainerInterface $container) : callable
                 $exception->getLine()
             )
         );
-        $log('Foundation')->error($exception->getTraceAsString());
+        $log('Foundation')->debug($exception->getTraceAsString());
+
+        $previousException = $exception->getPrevious();
+        if ($previousException) {
+            $log('Foundation')->error(
+                sprintf(
+                    '%s [%s:%d]',
+                    $previousException->getMessage(),
+                    $previousException->getFile(),
+                    $previousException->getLine()
+                )
+            );
+            $log('Foundation')->debug($previousException->getTraceAsString());
+        }
 
         if ($exception instanceof AppException) {
-            $log('API')->info(
+            $log('handler')->info(
                 sprintf(
                     '%s [%s:%d]',
                     $exception->getMessage(),
@@ -69,6 +83,7 @@ $container['errorHandler'] = function (ContainerInterface $container) : callable
                     $exception->getLine()
                 )
             );
+            $log('handler')->debug($exception->getTraceAsString());
 
             $body = [
                 'status' => false,
@@ -78,9 +93,11 @@ $container['errorHandler'] = function (ContainerInterface $container) : callable
                     'type'    => 'EXCEPTION_TYPE', // $exception->getType(),
                     'link'    => 'https://docs.idos.io/errors/EXCEPTION_TYPE', // $exception->getLink(),
                     'message' => $exception->getMessage(),
-                    'trace'   => $exception->getTrace()
                 ]
             ];
+            if ($settings['debug']) {
+                $body['error']['trace'] = $exception->getTrace();
+            }
 
             $command = $container
                 ->get('commandFactory')
@@ -94,7 +111,6 @@ $container['errorHandler'] = function (ContainerInterface $container) : callable
             return $container->get('commandBus')->handle($command);
         }
 
-        $settings = $container->get('settings');
         if ($settings['debug']) {
             $prettyPageHandler = new PrettyPageHandler();
             // Add more information to the PrettyPageHandler
@@ -180,7 +196,7 @@ $container['logWebProcessor'] = function (ContainerInterface $container) : calla
 
 // Monolog Logger
 $container['log'] = function (ContainerInterface $container) : callable {
-    return function ($channel = 'API') use ($container) {
+    return function ($channel = 'handler') use ($container) {
         $settings = $container->get('settings');
         $logger   = new Logger($channel);
         $logger
