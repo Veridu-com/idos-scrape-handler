@@ -44,7 +44,7 @@ class Contacts extends AbstractHandlerThread {
             return false;
         }
 
-        if (!isset($parsedBuffer['feed']) && !isset($parsedBuffer['feed']['entry'])) {
+        if (! isset($parsedBuffer['feed']) && ! isset($parsedBuffer['feed']['entry'])) {
             $this->lastError = 'No entries found';
 
             return false;

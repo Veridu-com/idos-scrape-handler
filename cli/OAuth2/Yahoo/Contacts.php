@@ -34,8 +34,7 @@ class Contacts extends AbstractHandlerThread {
         $start    = 0;
         try {
             while ($flag) {
-
-                $idBuffer = $this->worker->getService()->request('https://social.yahooapis.com/v1/user/me/profile?format=json');
+                $idBuffer       = $this->worker->getService()->request('https://social.yahooapis.com/v1/user/me/profile?format=json');
                 $parsedIdBuffer = json_decode($idBuffer, true);
 
                 if ($parsedIdBuffer === null) {

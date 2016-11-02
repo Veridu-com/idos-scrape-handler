@@ -22,9 +22,10 @@ class Friends extends AbstractTwitterThread {
                 ->Raw;
             $buffer = [];
             foreach ($this->fetchAll('/friends/list.json', 'include_user_entities=true&count=200') as $json) {
-                if ($json === false || ! isset($json['users']) ) {
+                if ($json === false || ! isset($json['users'])) {
                     break;
                 }
+
                 if (count($json['users'])) {
                     $buffer = array_merge($buffer, $json['users']);
                     if ($this->worker->isDryRun()) {

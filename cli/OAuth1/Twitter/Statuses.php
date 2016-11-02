@@ -50,8 +50,10 @@ class Statuses extends AbstractHandlerThread {
             try {
                 $this->worker->getLogger()->debug(
                     sprintf(
-                        '[%s] Uploading statuses',
-                        static::class
+                        '[%s] Uploading %d new items (%d total)',
+                        static::class,
+                        count($parsedBuffer),
+                        count($buffer)
                     )
                 );
                 $rawEndpoint->upsertOne(
@@ -99,8 +101,10 @@ class Statuses extends AbstractHandlerThread {
                     try {
                         $this->worker->getLogger()->debug(
                             sprintf(
-                                '[%s] Uploading statuses',
-                                static::class
+                                '[%s] Uploading %d new items (%d total)',
+                                static::class,
+                                count($parsedBuffer),
+                                count($buffer)
                             )
                         );
                         $rawEndpoint->upsertOne(

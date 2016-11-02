@@ -43,7 +43,7 @@ class Circles extends AbstractHandlerThread {
             return false;
         }
 
-        if (!isset($parsedBuffer['items'])) {
+        if (! isset($parsedBuffer['items'])) {
             $this->lastError = 'Unexpected response format';
 
             return false;
