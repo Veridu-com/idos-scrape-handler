@@ -25,3 +25,7 @@ if (! defined('__AUTHUSER__')) {
 if (! defined('__AUTHPASS__')) {
     define('__AUTHPASS__', 'htur');
 }
+
+if (! defined('__DEV__')) {
+    define('__DEV__', false);
+}

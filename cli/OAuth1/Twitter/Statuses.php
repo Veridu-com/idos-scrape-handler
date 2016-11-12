@@ -19,7 +19,7 @@ class Statuses extends AbstractHandlerThread {
      */
     public function execute() : bool {
         try {
-            $rawEndpoint = $this->worker->getSDK()
+            $rawEndpoint = $this->worker->getSdk()
                 ->Profile($this->worker->getUserName())
                 ->Raw;
             // Retrieve profile data from Twitter's API

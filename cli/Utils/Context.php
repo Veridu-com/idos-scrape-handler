@@ -8,6 +8,7 @@ declare(strict_types = 1);
 
 namespace Cli\Utils;
 
+use GuzzleHttp\Client;
 use idOS\Auth\AuthInterface;
 use idOS\SDK;
 use OAuth\Common\Service\ServiceInterface;
@@ -124,9 +125,20 @@ class Context extends \Worker {
      *
      * @return \idOS\SDK
      */
-    public function getSDK() : SDK {
+    public function getSdk() : SDK {
         if (! self::$sdk) {
             self::$sdk = SDK::create($this->authToken);
+
+            // development mode: disable ssl check
+            if (__DEV__) {
+                self::$sdk->setClient(
+                    new Client(
+                        [
+                            'verify' => false
+                        ]
+                    )
+                );
+            }
         }
 
         return self::$sdk;
