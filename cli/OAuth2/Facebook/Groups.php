@@ -14,7 +14,7 @@ class Groups extends AbstractFacebookThread {
      */
     public function execute() : bool {
         try {
-            $rawEndpoint = $this->worker->getSDK()
+            $rawEndpoint = $this->worker->getSdk()
                 ->Profile($this->worker->getUserName())
                 ->Raw;
             $buffer = [];

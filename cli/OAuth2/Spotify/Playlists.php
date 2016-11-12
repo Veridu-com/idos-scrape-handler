@@ -17,7 +17,7 @@ class Playlists extends AbstractSpotifyThread {
      */
     public function execute() : bool {
         try {
-            $rawEndpoint = $this->worker->getSDK()
+            $rawEndpoint = $this->worker->getSdk()
                 ->Profile($this->worker->getUserName())
                 ->Raw;
             $playlists = [];
