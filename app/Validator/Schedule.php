@@ -81,7 +81,7 @@ class Schedule implements ValidatorInterface {
     }
 
     /**
-     * Asserts a valid version number.
+     * Asserts a valid version number or null.
      *
      * @param mixed $version
      *
@@ -89,9 +89,11 @@ class Schedule implements ValidatorInterface {
      *
      * @return void
      */
-    public function assertOptionalVersion($version) {
-        Validator::regex('/^((?:(\d+)\.)?(?:(\d+)\.)?(\*|\d+)|)$/')
-            ->assert($version);
+    public function assertNullableVersion($version) {
+        Validator::oneOf(
+            Validator::regex('/^((?:(\d+)\.)?(?:(\d+)\.)?(\*|\d+)|)$/'),
+            Validator::nullType()
+        )->assert($version);
     }
 
     /**
