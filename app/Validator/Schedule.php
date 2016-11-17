@@ -59,13 +59,8 @@ class Schedule implements ValidatorInterface {
             ->assert($name);
     }
 
-    public function assertToken($token) {
-        Validator::prnt()
-            ->assert($token);
-    }
-
     /**
-     * Asserts a valid or null token.
+     * Asserts a valid token.
      *
      * @param mixed $token
      *
@@ -73,15 +68,28 @@ class Schedule implements ValidatorInterface {
      *
      * @return void
      */
-    public function assertNullableToken($token) {
-        Validator::oneOf(
-            Validator::prnt(),
-            Validator::nullType()
+    public function assertToken($token) {
+        Validator::prnt()
+            ->assert($token);
+    }
+
+    /**
+     * Asserts a valid token (optional).
+     *
+     * @param mixed $token
+     *
+     * @throws \Respect\Validation\Exceptions\ExceptionInterface
+     *
+     * @return void
+     */
+    public function assertOptionalToken($token) {
+        Validator::optional(
+            Validator::prnt()
         )->assert($token);
     }
 
     /**
-     * Asserts a valid version number or null.
+     * Asserts a valid version number (optional).
      *
      * @param mixed $version
      *
@@ -89,10 +97,9 @@ class Schedule implements ValidatorInterface {
      *
      * @return void
      */
-    public function assertNullableVersion($version) {
-        Validator::oneOf(
-            Validator::regex('/^((?:(\d+)\.)?(?:(\d+)\.)?(\*|\d+)|)$/'),
-            Validator::nullType()
+    public function assertOptionalVersion($version) {
+        Validator::optional(
+            Validator::regex('/^((?:(\d+)\.)?(?:(\d+)\.)?(\*|\d+)|)$/')
         )->assert($version);
     }
 

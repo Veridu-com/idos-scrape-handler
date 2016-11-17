@@ -91,10 +91,10 @@ class Schedule implements HandlerInterface {
             $this->validator->assertId($command->sourceId);
             $this->validator->assertName($command->providerName);
             $this->validator->assertToken($command->accessToken);
-            $this->validator->assertNullableToken($command->tokenSecret);
-            $this->validator->assertNullableToken($command->appKey);
-            $this->validator->assertNullableToken($command->appSecret);
-            $this->validator->assertNullableVersion($command->apiVersion);
+            $this->validator->assertOptionalToken($command->tokenSecret);
+            $this->validator->assertOptionalToken($command->appKey);
+            $this->validator->assertOptionalToken($command->appSecret);
+            $this->validator->assertOptionalVersion($command->apiVersion);
             $this->validator->assertKey($command->publicKey);
         } catch (\Respect\Validation\Exceptions\ExceptionInterface $exception) {
             $this->emitter->emit(new InvalidJob($command));
