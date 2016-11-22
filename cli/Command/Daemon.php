@@ -11,9 +11,12 @@ namespace Cli\Command;
 use Cli\HandlerFactory;
 use Cli\OAuthFactory;
 use Cli\Utils\Logger;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger as Monolog;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -29,6 +32,12 @@ class Daemon extends Command {
         $this
             ->setName('scrape:daemon')
             ->setDescription('idOS Scrape - Daemon')
+            ->addOption(
+                'logFile',
+                'l',
+                InputOption::VALUE_REQUIRED,
+                'Path to log file'
+            )
             ->addArgument(
                 'serverList',
                 InputArgument::REQUIRED | InputArgument::IS_ARRAY,
@@ -45,7 +54,10 @@ class Daemon extends Command {
      * @return void
      */
     protected function execute(InputInterface $input, OutputInterface $output) {
-        $logger = new Logger();
+        $logFile = $input->getOption('logFile') ?? 'php://stdout';
+        $monolog = new Monolog('Scrape');
+        $monolog->pushHandler(new StreamHandler($logFile, Monolog::DEBUG));
+        $logger = new Logger($monolog);
 
         $logger->debug('Initializing idOS Scrape Handler Daemon');
 
