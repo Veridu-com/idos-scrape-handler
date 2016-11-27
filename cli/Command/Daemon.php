@@ -33,10 +33,21 @@ class Daemon extends Command {
             ->setName('scrape:daemon')
             ->setDescription('idOS Scrape - Daemon')
             ->addOption(
+                'devMode',
+                'd',
+                InputOption::VALUE_NONE,
+                'Development mode'
+            )
+            ->addOption(
                 'logFile',
                 'l',
                 InputOption::VALUE_REQUIRED,
                 'Path to log file'
+            )
+            ->addArgument(
+                'functionName',
+                InputArgument::REQUIRED,
+                'Gearman Worker Function name'
             )
             ->addArgument(
                 'serverList',
@@ -61,6 +72,20 @@ class Daemon extends Command {
 
         $logger->debug('Initializing idOS Scrape Handler Daemon');
 
+        // Development mode
+        $devMode = ! empty($input->getOption('devMode'));
+        if ($devMode) {
+            $logger->debug('Running in developer mode');
+            ini_set('display_errors', 'On');
+            error_reporting(-1);
+        }
+
+        // Gearman Worker function name setup
+        $functionName = $input->getArgument('functionName');
+        if ((empty($functionName)) || (! preg_match('/^[a-zA-Z0-9\._-]+$/', $functionName))) {
+            $functionName = 'idos-scrape';
+        }
+
         // Server List setup
         $servers = $input->getArgument('serverList');
 
@@ -83,7 +108,7 @@ class Daemon extends Command {
         // 1 second I/O timeout
         $gearman->setTimeout(1000);
 
-        $logger->debug('Registering Worker Function "scrape"');
+        $logger->debug('Registering Worker Function', ['function' => $functionName]);
 
         /*
          * Payload content:
@@ -98,16 +123,18 @@ class Daemon extends Command {
          *  - userName
          */
         $gearman->addFunction(
-            'scrape',
+            $functionName,
             function (\GearmanJob $job) use ($logger) {
-                $logger->debug('Got a new job!');
+                $logger->info('Scrape job added');
                 $jobData = json_decode($job->workload(), true);
                 if ($jobData === null) {
-                    $logger->debug('Invalid Job Workload!');
+                    $logger->warning('Invalid Job Workload!');
                     $job->sendComplete('invalid');
 
                     return;
                 }
+
+                $init = microtime(true);
 
                 // Scrape Handler Factory
                 $factory = new HandlerFactory(
@@ -144,20 +171,8 @@ class Daemon extends Command {
                     (int) $jobData['sourceId']
                 );
 
-                $logger->debug('Job done!');
+                $logger->info('Job completed', ['time' => microtime(true) - $init]);
                 $job->sendComplete('ok');
-            }
-        );
-
-        $logger->debug('Registering Ping Function "ping"');
-
-        // Register Thread's Ping Function
-        $gearman->addFunction(
-            'ping',
-            function (\GearmanJob $job) use ($logger) {
-                $logger->debug('Ping!');
-
-                return 'pong';
             }
         );
 
