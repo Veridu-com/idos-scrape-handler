@@ -199,6 +199,11 @@ class Daemon extends Command {
                 if ($gearman->returnCode() == \GEARMAN_TIMEOUT) {
                     // Job wait timeout, sleep before retry
                     sleep(1);
+                    if (! @$gearman->echo('ping')) {
+                        $logger->debug('Invalid server state, restart');
+                        exit;
+                    }
+
                     continue;
                 }
             }
