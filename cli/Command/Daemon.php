@@ -45,6 +45,16 @@ class Daemon extends Command {
                 'Path to log file'
             )
             ->addArgument(
+                'handlerPublicKey',
+                InputArgument::REQUIRED,
+                'Handler public key'
+            )
+            ->addArgument(
+                'handlerPrivateKey',
+                InputArgument::REQUIRED,
+                'Handler private key'
+            )
+            ->addArgument(
                 'functionName',
                 InputArgument::REQUIRED,
                 'Gearman Worker Function name'
@@ -124,7 +134,7 @@ class Daemon extends Command {
          */
         $gearman->addFunction(
             $functionName,
-            function (\GearmanJob $job) use ($logger) {
+            function (\GearmanJob $job) use ($logger, $input) {
                 $logger->info('Scrape job added');
                 $jobData = json_decode($job->workload(), true);
                 if ($jobData === null) {
@@ -162,7 +172,9 @@ class Daemon extends Command {
                     isset($jobData['tokenSecret']) ? $jobData['tokenSecret'] : '',
                     isset($jobData['appKey']) ? $jobData['appKey'] : '',
                     isset($jobData['appSecret']) ? $jobData['appSecret'] : '',
-                    isset($jobData['apiVersion']) ? $jobData['apiVersion'] : ''
+                    isset($jobData['apiVersion']) ? $jobData['apiVersion'] : '',
+                    $input->getArgument('handlerPublicKey'),
+                    $input->getArgument('handlerPrivateKey')
                 );
 
                 $provider->handle(

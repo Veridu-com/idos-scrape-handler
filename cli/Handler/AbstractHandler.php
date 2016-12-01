@@ -29,14 +29,24 @@ abstract class AbstractHandler implements HandlerInterface {
      * @var \OAuth\Common\Service\ServiceInterface
      */
     protected $service;
-
+    /**
+     * Handler public key.
+     *
+     * @var string
+     */
+    protected $handlerPublicKey;
+    /**
+     * Handler private key.
+     *
+     * @var string
+     */
+    protected $handlerPrivateKey;
     /**
      * Returns the Pool Thread list.
      *
      * @return array
      */
     abstract protected function poolThreads() : array;
-
     /**
      * Returns the pool size required to deal with all threads.
      *
@@ -56,10 +66,14 @@ abstract class AbstractHandler implements HandlerInterface {
      */
     public function __construct(
         Logger $logger,
-        ServiceInterface $service
+        ServiceInterface $service,
+        string $handlerPublicKey,
+        string $handlerPrivateKey
     ) {
-        $this->logger  = $logger;
-        $this->service = $service;
+        $this->logger            = $logger;
+        $this->service           = $service;
+        $this->handlerPublicKey  = $handlerPublicKey;
+        $this->handlerPrivateKey = $handlerPrivateKey;
     }
 
     /**
@@ -90,7 +104,7 @@ abstract class AbstractHandler implements HandlerInterface {
             Context::class,
             [
                 $this->logger,
-                new CredentialToken($publicKey, __HNDKEY__, __HNDSEC__),
+                new CredentialToken($publicKey, $this->handlerPublicKey, $this->handlerPrivateKey),
                 $this->service,
                 $userName,
                 $sourceId,

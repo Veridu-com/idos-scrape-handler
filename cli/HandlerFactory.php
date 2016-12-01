@@ -121,6 +121,8 @@ class HandlerFactory {
      * @param string           $appKey
      * @param string           $appSecret
      * @param string           $apiVersion
+     * @param string           $handlerPublicKey
+     * @param string           $handlerPrivateKey
      *
      * @throws \RuntimeException
      *
@@ -133,7 +135,9 @@ class HandlerFactory {
         string $tokenSecret,
         string $appKey,
         string $appSecret,
-        string $apiVersion
+        string $apiVersion,
+        string $handlerPublicKey,
+        string $handlerPrivateKey
     ) {
         $className = $this->getClassName($handlerName);
 
@@ -147,7 +151,9 @@ class HandlerFactory {
                     $appKey,
                     $appSecret,
                     $apiVersion
-                )
+                ),
+                $handlerPublicKey,
+                $handlerPrivateKey
             );
         }
 
