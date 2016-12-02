@@ -59,8 +59,10 @@ abstract class AbstractHandler implements HandlerInterface {
     /**
      * Class constructor.
      *
-     * @param Cli\Utils\Logger                       $logger
+     * @param Cli\Utils\Logger                        $logger
      * @param \OAuth\Common\Service\ServiceInterface $service
+     * @param string                                  $handlerPublicKey
+     * @param string                                  $handlerPrivateKey
      *
      * @return void
      */

@@ -96,6 +96,9 @@ class Daemon extends Command {
             $functionName = 'idos-scrape';
         }
 
+        $handlerPublicKey = $input->getArgument('handlerPublicKey');
+        $handlerPrivateKey = $input->getArgument('handlerPrivateKey');
+
         // Server List setup
         $servers = $input->getArgument('serverList');
 
@@ -134,7 +137,7 @@ class Daemon extends Command {
          */
         $gearman->addFunction(
             $functionName,
-            function (\GearmanJob $job) use ($logger, $input) {
+            function (\GearmanJob $job) use ($logger, $handlerPublicKey, $handlerPrivateKey) {
                 $logger->info('Scrape job added');
                 $jobData = json_decode($job->workload(), true);
                 if ($jobData === null) {
@@ -173,8 +176,8 @@ class Daemon extends Command {
                     isset($jobData['appKey']) ? $jobData['appKey'] : '',
                     isset($jobData['appSecret']) ? $jobData['appSecret'] : '',
                     isset($jobData['apiVersion']) ? $jobData['apiVersion'] : '',
-                    $input->getArgument('handlerPublicKey'),
-                    $input->getArgument('handlerPrivateKey')
+                    $handlerPublicKey,
+                    $handlerPrivateKey
                 );
 
                 $provider->handle(
