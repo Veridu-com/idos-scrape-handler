@@ -59,10 +59,10 @@ abstract class AbstractHandler implements HandlerInterface {
     /**
      * Class constructor.
      *
-     * @param Cli\Utils\Logger                        $logger
+     * @param \Cli\Utils\Logger                      $logger
      * @param \OAuth\Common\Service\ServiceInterface $service
-     * @param string                                  $handlerPublicKey
-     * @param string                                  $handlerPrivateKey
+     * @param string                                 $handlerPublicKey
+     * @param string                                 $handlerPrivateKey
      *
      * @return void
      */
@@ -84,6 +84,7 @@ abstract class AbstractHandler implements HandlerInterface {
      * @param string $publicKey
      * @param string $userName
      * @param int    $sourceId
+     * @param bool   $devMode
      * @param bool   $dryRun
      *
      * @return void
@@ -92,6 +93,7 @@ abstract class AbstractHandler implements HandlerInterface {
         string $publicKey,
         string $userName,
         int $sourceId,
+        bool $devMode = false,
         bool $dryRun = false
     ) {
         $this->logger->debug(
@@ -110,6 +112,7 @@ abstract class AbstractHandler implements HandlerInterface {
                 $this->service,
                 $userName,
                 $sourceId,
+                $devMode,
                 $dryRun
             ]
         );

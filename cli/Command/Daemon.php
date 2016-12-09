@@ -142,7 +142,7 @@ class Daemon extends Command {
          */
         $gearman->addFunction(
             $functionName,
-            function (\GearmanJob $job) use ($logger, $handlerPublicKey, $handlerPrivateKey) {
+            function (\GearmanJob $job) use ($logger, $devMode, $handlerPublicKey, $handlerPrivateKey) {
                 $logger->info('Scrape job added');
                 $jobData = json_decode($job->workload(), true);
                 if ($jobData === null) {
@@ -188,7 +188,8 @@ class Daemon extends Command {
                 $provider->handle(
                     $jobData['publicKey'],
                     $jobData['userName'],
-                    (int) $jobData['sourceId']
+                    (int) $jobData['sourceId'],
+                    $devMode
                 );
 
                 $logger->info('Job completed', ['time' => microtime(true) - $init]);
