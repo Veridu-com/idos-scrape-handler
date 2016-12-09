@@ -114,15 +114,15 @@ class HandlerFactory {
     /**
      * Creates a new instance of a provider based on its name.
      *
-     * @param Cli\Utils\Logger $logger
-     * @param string           $handlerName
-     * @param string           $accessToken
-     * @param string           $tokenSecret
-     * @param string           $appKey
-     * @param string           $appSecret
-     * @param string           $apiVersion
-     * @param string           $handlerPublicKey
-     * @param string           $handlerPrivateKey
+     * @param \Cli\Utils\Logger $logger
+     * @param string            $handlerName
+     * @param string            $accessToken
+     * @param string            $tokenSecret
+     * @param string            $appKey
+     * @param string            $appSecret
+     * @param string            $apiVersion
+     * @param string            $handlerPublicKey
+     * @param string            $handlerPrivateKey
      *
      * @throws \RuntimeException
      *

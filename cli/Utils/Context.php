@@ -48,6 +48,12 @@ class Context extends \Worker {
      */
     private $sourceId;
     /**
+     * Developer mode flag.
+     *
+     * @var bool
+     */
+    private $devMode;
+    /**
      * Dry run mode flag.
      *
      * If $dryRun is true, no data is sent do idOS API.
@@ -66,6 +72,7 @@ class Context extends \Worker {
      * @param \OAuth\Common\Service\ServiceInterface $service
      * @param string                                 $userName
      * @param int                                    $sourceId
+     * @param bool                                   $devMode
      * @param bool                                   $dryRun
      *
      * @return void
@@ -76,6 +83,7 @@ class Context extends \Worker {
         ServiceInterface $service,
         string $userName,
         int $sourceId,
+        bool $devMode = false,
         bool $dryRun = false
     ) {
         $this->logger    = $logger;
@@ -83,6 +91,7 @@ class Context extends \Worker {
         $this->service   = $service;
         $this->userName  = $userName;
         $this->sourceId  = $sourceId;
+        $this->devMode   = $devMode;
         $this->dryRun    = $dryRun;
 
     }
@@ -130,14 +139,16 @@ class Context extends \Worker {
             self::$sdk = SDK::create($this->authToken);
 
             // development mode: disable ssl check
-            if (__DEV__) {
-                self::$sdk->setClient(
-                    new Client(
-                        [
-                            'verify' => false
-                        ]
-                    )
-                );
+            if ($this->devMode) {
+                self::$sdk
+                    ->setBaseUrl(getenv('IDOS_API_URL') ?: 'https://api.idos.io/1.0/')
+                    ->setClient(
+                        new Client(
+                            [
+                                'verify'   => false
+                            ]
+                        )
+                    );
             }
         }
 
