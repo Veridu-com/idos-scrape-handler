@@ -79,9 +79,10 @@ class Daemon extends Command {
     protected function execute(InputInterface $input, OutputInterface $output) {
         $logFile = $input->getOption('logFile') ?? 'php://stdout';
         $monolog = new Monolog('Scrape');
-        $monolog->pushProcessor(new UidProcessor());
-        $monolog->pushProcessor(new ProcessIdProcessor());
-        $monolog->pushHandler(new StreamHandler($logFile, Monolog::DEBUG));
+        $monolog
+            ->pushProcessor(new UidProcessor())
+            ->pushProcessor(new ProcessIdProcessor())
+            ->pushHandler(new StreamHandler($logFile, Monolog::DEBUG));
         $logger = new Logger($monolog);
 
         $logger->debug('Initializing idOS Scrape Handler Daemon');
