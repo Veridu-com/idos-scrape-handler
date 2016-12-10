@@ -90,7 +90,12 @@ class Daemon extends Command {
         // Development mode
         $devMode = ! empty($input->getOption('devMode'));
         if ($devMode) {
-            $logger->debug('Running in developer mode');
+            $logger->debug(
+                'Running in developer mode',
+                [
+                    'api_url' => getenv('IDOS_API_URL') ?: 'https://api.idos.io/1.0/'
+                ]
+            );
             ini_set('display_errors', 'On');
             error_reporting(-1);
         }
