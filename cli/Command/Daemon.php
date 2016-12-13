@@ -163,8 +163,7 @@ class Daemon extends Command {
                 }
 
                 $jobCount++;
-                $lastJob = time();
-                $init    = microtime(true);
+                $init = microtime(true);
 
                 // Scrape Handler Factory
                 $factory = new HandlerFactory(
@@ -206,6 +205,7 @@ class Daemon extends Command {
 
                 $logger->info('Job completed', ['time' => microtime(true) - $init]);
                 $job->sendComplete('ok');
+                $lastJob = time();
             }
         );
 
