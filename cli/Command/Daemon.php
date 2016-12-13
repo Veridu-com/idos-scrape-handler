@@ -87,6 +87,8 @@ class Daemon extends Command {
 
         $logger->debug('Initializing idOS Scrape Handler Daemon');
 
+        $bootTime = time();
+
         // Development mode
         $devMode = ! empty($input->getOption('devMode'));
         if ($devMode) {
@@ -133,6 +135,9 @@ class Daemon extends Command {
 
         $logger->debug('Registering Worker Function', ['function' => $functionName]);
 
+        $jobCount = 0;
+        $lastJob  = 0;
+
         /*
          * Payload content:
          *  - accessToken
@@ -147,7 +152,7 @@ class Daemon extends Command {
          */
         $gearman->addFunction(
             $functionName,
-            function (\GearmanJob $job) use ($logger, $devMode, $handlerPublicKey, $handlerPrivateKey) {
+            function (\GearmanJob $job) use ($logger, $handlerPublicKey, $handlerPrivateKey, $devMode, &$jobCount, &$lastJob) {
                 $logger->info('Scrape job added');
                 $jobData = json_decode($job->workload(), true);
                 if ($jobData === null) {
@@ -157,7 +162,9 @@ class Daemon extends Command {
                     return;
                 }
 
-                $init = microtime(true);
+                $jobCount++;
+                $lastJob = time();
+                $init    = microtime(true);
 
                 // Scrape Handler Factory
                 $factory = new HandlerFactory(
@@ -226,7 +233,18 @@ class Daemon extends Command {
                     // Job wait timeout, sleep before retry
                     sleep(1);
                     if (! @$gearman->echo('ping')) {
-                        $logger->debug('Invalid server state, restart');
+                        $logger->debug('Invalid server state, restarting');
+                        exit;
+                    }
+
+                    if (((time() - $bootTime) > 10) && ((time() - $lastJob) > 10)) {
+                        $logger->info(
+                            'Inactivity detected, restarting',
+                            [
+                                'runtime' => time() - $bootTime,
+                                'jobs' => $jobCount
+                            ]
+                        );
                         exit;
                     }
 
@@ -235,6 +253,6 @@ class Daemon extends Command {
             }
         }
 
-        $logger->debug('Leaving Gearman Worker Loop');
+        $logger->debug('Leaving Gearman Worker Loop', ['runtime' => time() - $bootTime, 'jobs' => $jobCount]);
     }
 }
