@@ -23,7 +23,7 @@ class Profile extends AbstractHandlerThread {
                 ->Profile($this->worker->getUserName())
                 ->Raw;
             // Retrieve profile data from Twitter's API
-            $rawBuffer = $this->worker->getService()->request('/account/verify_credentials.json?include_entities=true&skip_status=false');
+            $rawBuffer = $this->worker->getService()->request('/account/verify_credentials.json?include_entities=true&skip_status=false&include_email=true');
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
