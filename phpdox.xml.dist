@@ -3,7 +3,7 @@
     <bootstrap>
         <require file="./vendor/autoload.php" />
     </bootstrap>
-    <project name="idos-queue" source="${basedir}/app" workdir="${basedir}/build/phpdox/xml">
+    <project name="idos-scrape-handler" source="${basedir}/cli" workdir="${basedir}/build/phpdox/xml">
         <collector publiconly="false" backend="parser" encoding="auto">
             <include mask="*.php" />
             <exclude mask="" />
