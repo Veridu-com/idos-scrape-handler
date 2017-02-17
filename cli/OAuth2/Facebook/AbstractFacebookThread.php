@@ -11,6 +11,14 @@ namespace Cli\OAuth2\Facebook;
 use Cli\Handler\AbstractHandlerThread;
 
 abstract class AbstractFacebookThread extends AbstractHandlerThread {
+    /**
+     * Fetches facebook raw data.
+     *
+     * @param string $url
+     * @param string $param
+     *
+     * @return mixed
+     */
     protected function fetchAll(string $url, string $param = '') : \Generator {
         $param  = sprintf('?%s', ltrim($param, '?'));
         $buffer = [];
