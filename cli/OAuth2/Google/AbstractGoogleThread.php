@@ -11,6 +11,15 @@ namespace Cli\OAuth2\Google;
 use Cli\Handler\AbstractHandlerThread;
 
 abstract class AbstractGoogleThread extends AbstractHandlerThread {
+    /**
+     * Fetches google raw data.
+     *
+     * @param string $url
+     * @param string $param
+     * @param int    $bufferSize
+     *
+     * @return mixed
+     */
     protected function fetchAll(string $url, string $param = '', int $bufferSize = 100) : \Generator {
         $defaultParam = ltrim($param, '?');
         $param        = sprintf('?%s', $defaultParam);
