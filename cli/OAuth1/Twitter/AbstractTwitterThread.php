@@ -11,6 +11,14 @@ namespace Cli\OAuth1\Twitter;
 use Cli\Handler\AbstractHandlerThread;
 
 abstract class AbstractTwitterThread extends AbstractHandlerThread {
+    /**
+     * Fetches twitter raw data.
+     *
+     * @param string $url
+     * @param string $param
+     *
+     * @return mixed
+     */
     protected function fetchAll(string $url, string $param = '') : \Generator {
         $param  = sprintf('?%s', ltrim($param, '?'));
         $buffer = [];

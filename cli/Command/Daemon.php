@@ -242,7 +242,7 @@ class Daemon extends Command {
                             'Inactivity detected, restarting',
                             [
                                 'runtime' => time() - $bootTime,
-                                'jobs' => $jobCount
+                                'jobs'    => $jobCount
                             ]
                         );
                         exit;
