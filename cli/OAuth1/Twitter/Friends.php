@@ -16,52 +16,59 @@ class Friends extends AbstractTwitterThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            $buffer = [];
-            foreach ($this->fetchAll('/friends/list.json', 'include_user_entities=true&count=200') as $json) {
-                if ($json === false || ! isset($json['users'])) {
-                    break;
-                }
-
-                if (count($json['users'])) {
-                    $buffer = array_merge($buffer, $json['users']);
-                    if ($this->worker->isDryRun()) {
-                        $this->worker->getLogger()->debug(
-                            sprintf(
-                                '[%s] Retrieved %d new items (%d total)',
-                                static::class,
-                                count($json['users']),
-                                count($buffer)
-                            )
-                        );
-                        continue;
-                    }
-
-                    // Send post data to idOS API
-                    $this->worker->getLogger()->debug(
-                        sprintf(
-                            '[%s] Uploading %d new items (%d total)',
-                            static::class,
-                            count($json['users']),
-                            count($buffer)
-                        )
-                    );
-                    $rawEndpoint->upsertOne(
-                        $this->worker->getSourceId(),
-                        'friends',
-                        $buffer
-                    );
-                }
-            }
-
-            return true;
+            $buffer = $this->fetchAllWithCursors(
+                '/friends/list.json',
+                'count=200&include_user_entities=true',
+                'users'
+            );
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
+
+        $logger->debug(
+            sprintf(
+                '[%s] Retrieved %d items',
+                static::class,
+                count($buffer)
+            )
+        );
+
+        if (! $this->worker->isDryRun()) {
+            // Send friends data to idOS API
+            try {
+                $logger->debug(
+                    sprintf(
+                        '[%s] Sending data',
+                        static::class
+                    )
+                );
+                $rawEndpoint->upsertOne(
+                    $this->worker->getSourceId(),
+                    'friends',
+                    $buffer
+                );
+                $logger->debug(
+                    sprintf(
+                        '[%s] Data sent',
+                        static::class
+                    )
+                );
+            } catch (\Exception $exception) {
+                $this->lastError = $exception->getMessage();
+
+                return false;
+            }
+        }
+
+        return true;
     }
 }
