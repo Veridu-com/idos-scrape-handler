@@ -52,6 +52,12 @@ class Daemon extends Command {
                 InputOption::VALUE_REQUIRED,
                 'Path to log file'
             )
+            ->addOption(
+                'dryRun',
+                'r',
+                InputOption::VALUE_NONE,
+                'On dry run mode, no data is sent to idOS API'
+            )
             ->addArgument(
                 'handlerPublicKey',
                 InputArgument::REQUIRED,
@@ -213,7 +219,8 @@ class Daemon extends Command {
                     $jobData['publicKey'],
                     $jobData['userName'],
                     (int) $jobData['sourceId'],
-                    $devMode
+                    $devMode,
+                    empty($input->getOption('dryRun')) ? false : true
                 );
 
                 $logger->info('Job completed', ['time' => microtime(true) - $init]);
