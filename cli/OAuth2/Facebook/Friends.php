@@ -13,52 +13,72 @@ class Friends extends AbstractFacebookThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            $buffer = [];
-            foreach ($this->fetchAll('/me/friends', 'fields=id,first_name,last_name,gender,locale,languages,birthday,education,hometown,location,picture.width(1024).height(1024),relationship_status,significant_other,work,friends') as $json) {
-                if ($json === false) {
-                    break;
-                }
-
-                if (count($json)) {
-                    $buffer = array_merge($buffer, $json);
-                    if ($this->worker->isDryRun()) {
-                        $this->worker->getLogger()->debug(
-                            sprintf(
-                                '[%s] Retrieved %d new items (%d total)',
-                                static::class,
-                                count($json),
-                                count($buffer)
-                            )
-                        );
-                        continue;
-                    }
-
-                    // Send post data to idOS API
-                    $this->worker->getLogger()->debug(
-                        sprintf(
-                            '[%s] Uploading %d new items (%d total)',
-                            static::class,
-                            count($json),
-                            count($buffer)
-                        )
-                    );
-                    $rawEndpoint->upsertOne(
-                        $this->worker->getSourceId(),
-                        'friends',
-                        $buffer
-                    );
-                }
-            }
-
-            return true;
+            $buffer = $this->fetchAll(
+                '/me/friends',
+                'fields=id,first_name,last_name,gender,locale,languages,birthday,education,hometown,location,picture.width(1024).height(1024),relationship_status,significant_other,work,friends'
+            );
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
+
+        $numItems = count($buffer);
+
+        $logger->debug(
+            sprintf(
+                '[%s] Retrieved %d items',
+                static::class,
+                $numItems
+            )
+        );
+
+        if ($this->worker->isDryRun()) {
+            $logger->debug(
+                sprintf(
+                    '[%s] Friends data',
+                    static::class
+                ),
+                $buffer
+            );
+
+            return true;
+        }
+
+        if ($numItems) {
+            // Send friends data to idOS API
+            try {
+                $logger->debug(
+                    sprintf(
+                        '[%s] Sending data',
+                        static::class
+                    )
+                );
+                $rawEndpoint->upsertOne(
+                    $this->worker->getSourceId(),
+                    'friends',
+                    $buffer
+                );
+                $logger->debug(
+                    sprintf(
+                        '[%s] Data sent',
+                        static::class
+                    )
+                );
+            } catch (\Exception $exception) {
+                $this->lastError = $exception->getMessage();
+
+                return false;
+            }
+        }
+
+        return true;
     }
 }
