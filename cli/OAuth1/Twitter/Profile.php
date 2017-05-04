@@ -51,31 +51,41 @@ class Profile extends AbstractHandlerThread {
             )
         );
 
-        if (! $this->worker->isDryRun()) {
-            // Send profile data to idOS API
-            try {
-                $logger->debug(
-                    sprintf(
-                        '[%s] Sending data',
-                        static::class
-                    )
-                );
-                $rawEndpoint->upsertOne(
-                    $this->worker->getSourceId(),
-                    'profile',
-                    $parsedBuffer
-                );
-                $logger->debug(
-                    sprintf(
-                        '[%s] Data sent',
-                        static::class
-                    )
-                );
-            } catch (\Exception $exception) {
-                $this->lastError = $exception->getMessage();
+        if ($this->worker->isDryRun()) {
+            $logger->debug(
+                sprintf(
+                    '[%s] Profile data',
+                    static::class
+                ),
+                $parsedBuffer
+            );
 
-                return false;
-            }
+            return true;
+        }
+
+        // Send profile data to idOS API
+        try {
+            $logger->debug(
+                sprintf(
+                    '[%s] Sending data',
+                    static::class
+                )
+            );
+            $rawEndpoint->upsertOne(
+                $this->worker->getSourceId(),
+                'profile',
+                $parsedBuffer
+            );
+            $logger->debug(
+                sprintf(
+                    '[%s] Data sent',
+                    static::class
+                )
+            );
+        } catch (\Exception $exception) {
+            $this->lastError = $exception->getMessage();
+
+            return false;
         }
 
         return true;

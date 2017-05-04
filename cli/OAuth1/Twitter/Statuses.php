@@ -22,8 +22,8 @@ class Statuses extends AbstractTwitterThread {
 
         $logger = $this->worker->getLogger();
 
-        // Retrieve data from Twitter's API
         try {
+            // Retrieve data from Twitter's API
             $buffer = $this->fetchAllWithIds('/statuses/user_timeline.json', 'count=200');
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
@@ -31,15 +31,29 @@ class Statuses extends AbstractTwitterThread {
             return false;
         }
 
+        $numItems = count($buffer);
+
         $logger->debug(
             sprintf(
                 '[%s] Retrieved %d items',
                 static::class,
-                count($buffer)
+                $numItems
             )
         );
 
-        if (! $this->worker->isDryRun()) {
+        if ($this->worker->isDryRun()) {
+            $logger->debug(
+                sprintf(
+                    '[%s] Statuses data',
+                    static::class
+                ),
+                $buffer
+            );
+
+            return true;
+        }
+
+        if ($numItems) {
             // Send statuses data to idOS API
             try {
                 $logger->debug(

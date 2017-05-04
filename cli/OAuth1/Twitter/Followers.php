@@ -34,15 +34,29 @@ class Followers extends AbstractTwitterThread {
             return false;
         }
 
+        $numItems = count($buffer);
+
         $logger->debug(
             sprintf(
                 '[%s] Retrieved %d items',
                 static::class,
-                count($buffer)
+                $numItems
             )
         );
 
-        if (! $this->worker->isDryRun()) {
+        if ($this->worker->isDryRun()) {
+            $logger->debug(
+                sprintf(
+                    '[%s] Followers data',
+                    static::class
+                ),
+                $buffer
+            );
+
+            return true;
+        }
+
+        if ($numItems) {
             // Send followers data to idOS API
             try {
                 $logger->debug(
