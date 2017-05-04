@@ -18,52 +18,74 @@ class Profile extends AbstractHandlerThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
             // Retrieve profile data from Yahoo's API
             $rawBuffer = $this->worker->getService()->request('https://social.yahooapis.com/v1/user/me/profile?format=json');
+
+            $parsedBuffer = json_decode($rawBuffer, true);
+            if ($parsedBuffer === null) {
+                throw new \Exception('Failed to parse response');
+            }
+
+            if (isset($parsedBuffer['error']['description'])) {
+                throw new \Exception($parsedBuffer['error']['description']);
+            }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
 
-        $parsedBuffer = json_decode($rawBuffer, true);
-        if ($parsedBuffer === null) {
-            $this->lastError = 'Failed to parse response';
-
-            return false;
-        }
-
-        if (isset($parsedBuffer['error'])) {
-            $this->lastError = $parsedBuffer['error']['description'];
-
-            return false;
-        }
-
         $parsedBuffer['updated'] = time();
 
-        if (! $this->worker->isDryRun()) {
-            // Send profile data to idOS API
-            try {
-                $this->worker->getLogger()->debug(
-                    sprintf(
-                        '[%s] Uploading profile',
-                        static::class
-                    )
-                );
-                $rawEndpoint->upsertOne(
-                    $this->worker->getSourceId(),
-                    'profile',
-                    $parsedBuffer
-                );
-            } catch (\Exception $exception) {
-                $this->lastError = $exception->getMessage();
+        $logger->debug(
+            sprintf(
+                '[%s] Retrieved profile',
+                static::class
+            )
+        );
 
-                return false;
-            }
+        if ($this->worker->isDryRun()) {
+            $logger->debug(
+                sprintf(
+                    '[%s] Profile data',
+                    static::class
+                ),
+                $parsedBuffer
+            );
+
+            return true;
+        }
+
+        // Send profile data to idOS API
+        try {
+            $logger->debug(
+                sprintf(
+                    '[%s] Sending data',
+                    static::class
+                )
+            );
+            $rawEndpoint->upsertOne(
+                $this->worker->getSourceId(),
+                'profile',
+                $parsedBuffer
+            );
+            $logger->debug(
+                sprintf(
+                    '[%s] Data sent',
+                    static::class
+                )
+            );
+        } catch (\Exception $exception) {
+            $this->lastError = $exception->getMessage();
+
+            return false;
         }
 
         return true;

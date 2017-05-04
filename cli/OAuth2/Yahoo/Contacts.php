@@ -18,95 +18,99 @@ class Contacts extends AbstractHandlerThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $service = $this->worker->getService();
+        $logger  = $this->worker->getLogger();
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            // Retrieve profile data from Spotify's API
+            // Retrieve contact data from Yahoo's API
+            $rawBuffer = $service->request('https://social.yahooapis.com/v1/user/me/profile?format=json');
+
+            $parsedBuffer = json_decode($rawBuffer, true);
+            if ($parsedBuffer === null) {
+                throw new \Exception('Failed to parse response for user id');
+            }
+
+            if (isset($parsedBuffer['error']['description'])) {
+                throw new \Exception($parsedBuffer['error']['description']);
+            }
+
+            $profileId = $parsedBuffer['profile']['guid'];
+
+            $rawBuffer = $service->request(
+                sprintf(
+                    'https://social.yahooapis.com/v1/user/%s/contacts;start=0;count=max?format=json&view=tinyusercard',
+                    $profileId
+                )
+            );
+
+            $parsedBuffer = json_decode($rawBuffer, true);
+            if ($parsedBuffer === null) {
+                throw new \Exception('Failed to parse response');
+            }
+
+            if (isset($parsedBuffer['error']['description'])) {
+                throw new \Exception($parsedBuffer['error']['description']);
+            }
+
+            if (! isset($parsedBuffer['contacts']['contact'])) {
+                throw new \Exception('Invalid response format');
+            }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
 
-        $contacts = [];
-        $flag     = true;
-        $start    = 0;
-        try {
-            while ($flag) {
-                $idBuffer       = $this->worker->getService()->request('https://social.yahooapis.com/v1/user/me/profile?format=json');
-                $parsedIdBuffer = json_decode($idBuffer, true);
+        $numItems = count($parsedBuffer);
 
-                if ($parsedIdBuffer === null) {
-                    $this->lastError = 'Failed to parse response for user id';
+        $logger->debug(
+            sprintf(
+                '[%s] Retrieved %d items',
+                static::class,
+                $numItems
+            )
+        );
 
-                    return false;
-                }
+        if ($this->worker->isDryRun()) {
+            $logger->debug(
+                sprintf(
+                    '[%s] Contacts data',
+                    static::class
+                ),
+                $parsedBuffer
+            );
 
-                if (isset($parsedIdBuffer['error'])) {
-                    $this->lastError = $parsedIdBuffer['error']['description'];
-
-                    return false;
-                }
-
-                $profileId = $parsedIdBuffer['profile']['guid'];
-
-                $rawBuffer = $this->worker->getService()->request("https://social.yahooapis.com/v1/user/{$profileId}/contacts;start=0;count=50?format=json&view=tinyusercard");
-
-                $parsedBuffer = json_decode($rawBuffer, true);
-                if ($parsedBuffer === null) {
-                    $this->lastError = 'Failed to parse response';
-
-                    return false;
-                }
-
-                if (isset($parsedBuffer['error'])) {
-                    $this->lastError = $parsedBuffer['error']['description'];
-
-                    return false;
-                }
-
-                if (! isset($parsedBuffer['contacts']['total'], $parsedBuffer['contacts']['count'])
-                    || $parsedBuffer['contacts']['total'] == 0
-                    || $parsedBuffer['contacts']['count'] == 0
-                ) {
-                    $flag = false;
-                }
-                else {
-                    $contacts = array_merge($contacts, $parsedBuffer['contacts']['contact']);
-                    if ($start < $parsedBuffer['contacts']['total'] && $parsedBuffer['contacts']['count'] == 50) {
-                        $start += 50;
-                    } else {
-                        $flag = false;
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            $this->lastError = $exception->getMessage();
-
-            return false;
+            return true;
         }
 
-        if (count($contacts)) {
-            if (! $this->worker->isDryRun()) {
-                // Send profile data to idOS API
-                try {
-                    $this->worker->getLogger()->debug(
-                        sprintf(
-                            '[%s] Uploading contacts',
-                            static::class
-                        )
-                    );
-                    $rawEndpoint->upsertOne(
-                        $this->worker->getSourceId(),
-                        'contacts',
-                        $parsedBuffer
-                    );
-                } catch (\Exception $exception) {
-                    $this->lastError = $exception->getMessage();
+        if ($numItems) {
+            // Send profile data to idOS API
+            try {
+                $logger->debug(
+                    sprintf(
+                        '[%s] Sending data',
+                        static::class
+                    )
+                );
+                $rawEndpoint->upsertOne(
+                    $this->worker->getSourceId(),
+                    'contacts',
+                    $parsedBuffer
+                );
+                $logger->debug(
+                    sprintf(
+                        '[%s] Data sent',
+                        static::class
+                    )
+                );
+            } catch (\Exception $exception) {
+                $this->lastError = $exception->getMessage();
 
-                    return false;
-                }
+                return false;
             }
         }
 
