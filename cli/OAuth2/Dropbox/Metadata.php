@@ -18,84 +18,117 @@ class Metadata extends AbstractHandlerThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $service = $this->worker->getService();
+        $logger  = $this->worker->getLogger();
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
             // Retrieve profile data from Dropbox's API
-            $rawBuffer = $this->worker->getService()->request('/metadata/auto/?&list=true&include_media_info=true&file_limit=25000');
+            $rawBuffer = $service->request(
+                'files/list_folder',
+                'POST',
+                json_encode(
+                    [
+                        'path'                                => '',
+                        'recursive'                           => false,
+                        'include_media_info'                  => true,
+                        'include_deleted'                     => false,
+                        'include_has_explicit_shared_members' => true
+                    ]
+                ),
+                ['Content-Type' => 'application/json']
+            );
+
+            $parsedBuffer = json_decode($rawBuffer, true);
+            if ($parsedBuffer === null) {
+                throw new \Exception('Failed to parse response');
+            }
+
+            if (isset($parsedBuffer['error_summary'])) {
+                throw new \Exception($parsedBuffer['error_summary']);
+            }
+
+            if (empty($parsedBuffer['entries'])) {
+                throw new \Exception('Empty root folder');
+            }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
 
-        $parsedBuffer = json_decode($rawBuffer, true);
-        if ($parsedBuffer === null) {
-            $this->lastError = 'Failed to parse response';
+        $buffer = $parsedBuffer['entries'];
 
-            return false;
-        }
+        while ($parsedBuffer['has_more']) {
+            $rawBuffer = $service->request(
+                'files/list_folder/continue',
+                'POST',
+                json_encode(
+                    [
+                        'cursor' => $parsedBuffer['cursor']
+                    ]
+                ),
+                ['Content-Type' => 'application/json']
+            );
 
-        if (isset($parsedBuffer['error'])) {
-            $this->lastError = $parsedBuffer['error'];
+            $parsedBuffer = json_decode($rawBuffer, true);
+            if ($parsedBuffer === null) {
+                break;
+            }
 
-            return false;
-        }
+            if (isset($parsedBuffer['error_summary'])) {
+                break;
+            }
 
-        if (! isset($parsedBuffer['contents']) || count($parsedBuffer['contents']) == 0) {
-            $this->lastError = 'Root listing has no items';
-
-            return false;
-        }
-
-        $dirs = [];
-
-        foreach ($parsedBuffer['contents'] as $content) {
-            if ($content['is_dir']) {
-                $dirs[] = $content['path'];
+            if (! empty($parsedBuffer['entries'])) {
+                $buffer = array_merge($buffer, $parsedBuffer['entries']);
             }
         }
 
-        $contents[] = ['path' => $parsedBuffer['path'], 'contents' => $parsedBuffer['contents']];
+        $numItems = count($buffer);
 
-        foreach ($dirs as $path) {
-            $rawPathBuffer    = $this->worker->getService()->request("/metadata/auto/$path?&list=true&include_media_info=true&file_limit=25000");
-            $parsedPathBuffer = json_decode($rawPathBuffer, true);
+        $logger->debug(
+            sprintf(
+                '[%s] Retrieved %d items',
+                static::class,
+                $numItems
+            )
+        );
 
-            if (empty($parsedPathBuffer)) {
-                $this->lastError = 'Unknown error';
+        if ($this->worker->isDryRun()) {
+            $logger->debug(
+                sprintf(
+                    '[%s] Metadata data',
+                    static::class
+                ),
+                $buffer
+            );
 
-                return false;
-            }
-
-            if (isset($parsedPathBuffer['error'])) {
-                $this->lastError = $parsedBuffer['error'];
-
-                return false;
-            }
-
-            if (isset($parsedPathBuffer['contents']) && count($parsedPathBuffer['contents']) != 0) {
-                $contents[] = [
-                    'path'     => $parsedPathBuffer['path'],
-                    'contents' => $parsedPathBuffer['contents']
-                ];
-            }
+            return true;
         }
 
-        if (! $this->worker->isDryRun()) {
+        if ($numItems) {
             // Send metadata to idOS API
             try {
-                $this->worker->getLogger()->debug(
+                $logger->debug(
                     sprintf(
-                        '[%s] Uploading metadata',
+                        '[%s] Sending data',
                         static::class
                     )
                 );
                 $rawEndpoint->upsertOne(
                     $this->worker->getSourceId(),
                     'metadata',
-                    $contents
+                    $buffer
+                );
+                $logger->debug(
+                    sprintf(
+                        '[%s] Data sent',
+                        static::class
+                    )
                 );
             } catch (\Exception $exception) {
                 $this->lastError = $exception->getMessage();
