@@ -14,7 +14,6 @@ use Cli\Utils\Logger;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger as Monolog;
 use Monolog\Processor\ProcessIdProcessor;
-use Monolog\Processor\UidProcessor;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
