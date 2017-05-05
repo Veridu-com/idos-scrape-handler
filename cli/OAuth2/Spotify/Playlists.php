@@ -16,73 +16,70 @@ class Playlists extends AbstractSpotifyThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            $playlists = [];
-
-            $rawIdBuffer = $this->worker->getService()->request('/me');
-
-            $parsedIdBuffer = json_decode($rawIdBuffer, true);
-            if ($parsedIdBuffer === null) {
-                $this->lastError = 'Failed to parse id response';
-
-                return false;
-            }
-
-            if (isset($parsedIdBuffer['error'])) {
-                $this->lastError = $parsedIdBuffer['error']['message'];
-
-                return false;
-            }
-
-            $profileId = $parsedIdBuffer['id'];
-
-            foreach ($this->fetchAll('/users/' . $profileId . '/playlists', '') as $json) {
-                if ($json === false) {
-                    break;
-                }
-
-                if (count($json)) {
-                    foreach ($json as $item) {
-                        $playlists[] = $item;
-                    }
-
-                    if ($this->worker->isDryRun()) {
-                        $this->worker->getLogger()->debug(
-                            sprintf(
-                                '[%s] Retrieved %d new items (%d total)',
-                                static::class,
-                                count($json),
-                                count($playlists)
-                            )
-                        );
-                        continue;
-                    }
-
-                    // Send post data to idOS API
-                    $this->worker->getLogger()->debug(
-                        sprintf(
-                            '[%s] Uploading %d new items (%d total)',
-                            static::class,
-                            count($json),
-                            count($playlists)
-                        )
-                    );
-                    $rawEndpoint->upsertOne(
-                        $this->worker->getSourceId(),
-                        'playlists',
-                        $playlists
-                    );
-                }
-            }
-
-            return true;
+            // Retrieve data from Spotify's API
+            $buffer = $this->fetchAll('/me/playlists', 'limit=50', 'items');
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
+
+        $numItems = count($buffer);
+
+        $logger->debug(
+            sprintf(
+                '[%s] Retrieved %d items',
+                static::class,
+                $numItems
+            )
+        );
+
+        if ($this->worker->isDryRun()) {
+            $logger->debug(
+                sprintf(
+                    '[%s] Playlists data',
+                    static::class
+                ),
+                $buffer
+            );
+
+            return true;
+        }
+
+        if ($numItems) {
+            // Send playlists data to idOS API
+            try {
+                $logger->debug(
+                    sprintf(
+                        '[%s] Sending data',
+                        static::class
+                    )
+                );
+                $rawEndpoint->upsertOne(
+                    $this->worker->getSourceId(),
+                    'playlists',
+                    $buffer
+                );
+                $logger->debug(
+                    sprintf(
+                        '[%s] Data sent',
+                        static::class
+                    )
+                );
+            } catch (\Exception $exception) {
+                $this->lastError = $exception->getMessage();
+
+                return false;
+            }
+        }
+
+        return true;
     }
 }

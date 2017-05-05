@@ -9,6 +9,7 @@ declare(strict_types = 1);
 namespace Cli\OAuth2\Spotify;
 
 use Cli\Handler\AbstractHandlerThread;
+use Illuminate\Support\Arr;
 
 abstract class AbstractSpotifyThread extends AbstractHandlerThread {
     /**
@@ -17,47 +18,52 @@ abstract class AbstractSpotifyThread extends AbstractHandlerThread {
      * @param string $url
      * @param string $param
      *
-     * @return mixed
+     * @throws \Exception
+     *
+     * @return array
      */
-    protected function fetchAll(string $url, string $param = '') : \Generator {
-        $param  = sprintf('?%s', ltrim($param, '?'));
-        $buffer = [];
+    protected function fetchAll(string $url, string $param = '', string $extractField = '') : array {
+        $service = $this->worker->getService();
+        $url     = sprintf('%s?%s', $url, ltrim($param, '?'));
+        $buffer  = [];
         try {
             while (true) {
-                $data = $this->worker->getService()->request(sprintf('%s%s', $url, $param));
-                $json = json_decode($data, true);
-                if ($json === null) {
+                $rawBuffer = $service->request($url);
+
+                $parsedBuffer = json_decode($rawBuffer, true);
+                if ($parsedBuffer === null) {
                     throw new \Exception('Failed to parse response');
                 }
 
-                if (isset($json['error'])) {
-                    throw new \Exception($json['error']['message']);
+                if (isset($parsedBuffer['error']['message'])) {
+                    throw new \Exception($parsedBuffer['error']['message']);
                 }
 
-                if (! count($json['items'])) {
+                $url = $parsedBuffer['next'];
+
+                if (! empty($extractField)) {
+                    $parsedBuffer = Arr::get($parsedBuffer, $extractField);
+                    if ($parsedBuffer === null) {
+                        break;
+                    }
+                }
+
+                if (! count($parsedBuffer)) {
                     break;
                 }
 
-                $buffer = array_merge($buffer, $json['items']);
-                if (count($buffer) > 100) {
-                    yield $buffer;
-                    $buffer = [];
-                }
+                $buffer = array_merge($buffer, $parsedBuffer);
 
-                if (! isset($json['paging']['next'])) {
+                if ($url === null) {
                     break;
                 }
-
-                $param = substr($json['paging']['next'], strpos($json['paging']['next'], '?'));
             }
 
-            if (count($buffer)) {
-                yield $buffer;
-            }
+            return $buffer;
         } catch (\Exception $exception) {
             // ensure that even if an exception get thrown, all buffer is returned
             if (count($buffer)) {
-                yield $buffer;
+                return $buffer;
             }
 
             throw $exception;

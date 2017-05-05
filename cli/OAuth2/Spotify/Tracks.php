@@ -16,95 +16,95 @@ class Tracks extends AbstractSpotifyThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-
-            $rawIdBuffer = $this->worker->getService()->request('/me');
-
-            $parsedIdBuffer = json_decode($rawIdBuffer, true);
-            if ($parsedIdBuffer === null) {
-                $this->lastError = 'Failed to parse id response';
-
-                return false;
-            }
-
-            if (isset($parsedIdBuffer['error'])) {
-                $this->lastError = $parsedIdBuffer['error']['message'];
-
-                return false;
-            }
-
-            $profileId = $parsedIdBuffer['id'];
-
-            $rawPlaylists = $this->fetchAll('/users/' . $profileId . '/playlists', '');
-
-            if ($rawPlaylists === null) {
-                $this->lastError = 'Failed to parse response';
-
-                return false;
-            }
-
-            $buffer = [];
-            foreach ($rawPlaylists as $rawPlaylistArray) {
-                foreach ($rawPlaylistArray as $rawPlaylist) {
-                    if (! isset($rawPlaylist['tracks']['href'])) {
-                        continue;
-                    }
-
-                    foreach ($this->fetchAll($rawPlaylist['tracks']['href']) as $track) {
-                        if ($track === false) {
-                            continue;
-                        }
-
-                        if (count($track)) {
-                            foreach ($track as &$item) {
-                                if (! isset($item['playlist'])) {
-                                    $item['playlists'] = [];
-                                }
-
-                                $item['playlists'][] = $rawPlaylist['id'];
-                            }
-
-                            $buffer = array_merge($buffer, $track);
-
-                            if ($this->worker->isDryRun()) {
-                                $this->worker->getLogger()->debug(
-                                    sprintf(
-                                        '[%s] Retrieved %d new items (%d total)',
-                                        static::class,
-                                        count($rawPlaylists),
-                                        count($buffer)
-                                    )
-                                );
-                                continue;
-                            }
-
-                            // Send post data to idOS API
-                            $this->worker->getLogger()->debug(
-                                sprintf(
-                                    '[%s] Uploading %d new items (%d total)',
-                                    static::class,
-                                    count($rawPlaylists),
-                                    count($buffer)
-                                )
-                            );
-                            $rawEndpoint->upsertOne(
-                                $this->worker->getSourceId(),
-                                'tracks',
-                                $buffer
-                            );
-                        }
-                    }
-                }
-            }
-
-            return true;
+            // Retrieve data from Spotify's API
+            $playlists = $this->fetchAll('/me/playlists', 'limit=50', 'items');
         } catch (\Exception $exception) {
-            $this->lastError = $exception->getMessage();
+            $this->lastError = $exception->getMEssage();
 
             return false;
         }
+
+        $buffer = [];
+        foreach ($playlists as $playlist) {
+            if (! isset($playlist['tracks']['href'])) {
+                continue;
+            }
+
+            try {
+                $tracks = $this->fetchAll($playlist['tracks']['href'], 'limit=100', 'items');
+                if (count($tracks)) {
+                    foreach ($tracks as &$track) {
+                        if (! isset($track['playlists'])) {
+                            $track['playlists'] = [];
+                        }
+
+                        $track['playlists'][] = $playlist['id'];
+                    }
+
+                    $buffer = array_merge($buffer, $tracks);
+                }
+            } catch (\Exception $exception) {
+                // avoid breaking retrieval due to an exception
+                continue;
+            }
+        }
+
+        $numItems = count($buffer);
+
+        $logger->debug(
+            sprintf(
+                '[%s] Retrieved %d items',
+                static::class,
+                $numItems
+            )
+        );
+
+        if ($this->worker->isDryRun()) {
+            $logger->debug(
+                sprintf(
+                    '[%s] Tracks data',
+                    static::class
+                ),
+                $buffer
+            );
+
+            return true;
+        }
+
+        if ($numItems) {
+            // Send tracks data to idOS API
+            try {
+                $logger->debug(
+                    sprintf(
+                        '[%s] Sending data',
+                        static::class
+                    )
+                );
+                $rawEndpoint->upsertOne(
+                    $this->worker->getSourceId(),
+                    'tracks',
+                    $buffer
+                );
+                $logger->debug(
+                    sprintf(
+                        '[%s] Data sent',
+                        static::class
+                    )
+                );
+            } catch (\Exception $exception) {
+                $this->lastError = $exception->getMessage();
+
+                return false;
+            }
+        }
+
+        return true;
     }
 }
