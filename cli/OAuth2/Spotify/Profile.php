@@ -25,7 +25,6 @@ class Profile extends AbstractHandlerThread {
         $logger = $this->worker->getLogger();
 
         try {
-            // Retrieve profile data from Spotify's API
             $rawBuffer = $this->worker->getService()->request('/me');
 
             $parsedBuffer = json_decode($rawBuffer, true);
@@ -33,8 +32,12 @@ class Profile extends AbstractHandlerThread {
                 throw new \Exception('Failed to parse response');
             }
 
-            if (isset($parsedBuffer['error']['message'])) {
-                throw new \Exception($parsedBuffer['error']['message']);
+            if (isset($parsedBuffer['error'])) {
+                if (isset($parsedBuffer['error']['message'])) {
+                    throw new \Exception($parsedBuffer['error']['message']);
+                }
+
+                throw new \Exception('Unknown API error');
             }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
@@ -63,7 +66,7 @@ class Profile extends AbstractHandlerThread {
             return true;
         }
 
-        // Send profile data to idOS API
+        // Send data to idOS API
         try {
             $logger->debug(
                 sprintf(

@@ -25,7 +25,6 @@ class Profile extends AbstractHandlerThread {
         $logger = $this->worker->getLogger();
 
         try {
-            // Retrieve profile data from Amazon's API
             $rawBuffer = $this->worker->getService()->request('/user/profile');
 
             $parsedBuffer = json_decode($rawBuffer, true);
@@ -61,7 +60,7 @@ class Profile extends AbstractHandlerThread {
             return true;
         }
 
-        // Send profile data to idOS API
+        // Send data to idOS API
         try {
             $logger->debug(
                 sprintf(

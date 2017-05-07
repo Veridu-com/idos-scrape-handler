@@ -25,7 +25,6 @@ class Profile extends AbstractHandlerThread {
         $logger = $this->worker->getLogger();
 
         try {
-            // Retrieve profile data from Dropbox's API
             $rawBuffer = $this->worker->getService()->request(
                 'users/get_current_account',
                 'POST',
@@ -66,7 +65,7 @@ class Profile extends AbstractHandlerThread {
             return true;
         }
 
-        // Send profile data to idOS API
+        // Send data to idOS API
         try {
             $logger->debug(
                 sprintf(

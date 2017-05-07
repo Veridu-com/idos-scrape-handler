@@ -6,14 +6,9 @@
 
 declare(strict_types = 1);
 
-namespace Cli\OAuth2\Google\Plus;
+namespace Cli\OAuth2\Facebook;
 
-use Cli\OAuth2\Google\AbstractGoogleThread;
-
-/**
- * Google Plus Circle's Profile Scraper.
- */
-class Circles extends AbstractGoogleThread {
+class Family extends AbstractFacebookThread {
     /**
      * {@inheritdoc}
      */
@@ -27,9 +22,8 @@ class Circles extends AbstractGoogleThread {
 
         try {
             $fetch = $this->fetchAll(
-                'https://www.googleapis.com/plus/v1/people/me/people/visible',
-                'maxResults=100',
-                'items'
+                '/me/family',
+                'fields=id,first_name,last_name,relationship,picture'
             );
 
             foreach ($fetch as $buffer) {
@@ -46,7 +40,7 @@ class Circles extends AbstractGoogleThread {
                 if ($this->worker->isDryRun()) {
                     $logger->debug(
                         sprintf(
-                            '[%s] Circles data',
+                            '[%s] Family data',
                             static::class
                         ),
                         $buffer
@@ -66,7 +60,7 @@ class Circles extends AbstractGoogleThread {
                     $data = array_merge($data, $buffer);
                     $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
-                        'circles',
+                        'family',
                         $data
                     );
                     $logger->debug(
@@ -84,5 +78,6 @@ class Circles extends AbstractGoogleThread {
         }
 
         return true;
+
     }
 }

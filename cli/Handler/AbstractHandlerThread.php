@@ -13,6 +13,27 @@ namespace Cli\Handler;
  */
 abstract class AbstractHandlerThread extends \Thread {
     /**
+     * Constrols yielding.
+     *
+     * @const bool
+     */
+    const YIELD_ENABLED = true;
+    /**
+     * Controls the Yield Interval.
+     *
+     * @const int
+     */
+    const YIELD_INTERVAL = 10;
+    /**
+     * Yield interval backoff multiplier.
+     *
+     * Use 0 for constant backoff.
+     *
+     * @const int
+     */
+    const YIELD_MULTIPLIER = 1;
+
+    /**
      * Failure flag.
      *
      * @var bool
@@ -64,17 +85,30 @@ abstract class AbstractHandlerThread extends \Thread {
      * @return void
      */
     public function run() {
-        $startTime = microtime(true);
-        if (! $this->execute()) {
-            $this->worker->getLogger()->error(
-                sprintf('[%s] Error: %s', static::class, $this->lastError)
+        $logger         = $this->worker->getLogger();
+        $startTime      = microtime(true);
+        $this->failed   = ! $this->execute();
+        $this->execTime = microtime(true) - $startTime;
+
+        if ($this->failed) {
+            $logger->error(
+                sprintf(
+                    '[%s] Error: %s (%.2fs)',
+                    static::class,
+                    $this->lastError,
+                    $this->execTime
+                )
             );
-            $this->failed = true;
+
+            return;
         }
 
-        $this->execTime = microtime(true) - $startTime;
-        $this->worker->getLogger()->debug(
-            sprintf('[%s] Completed (%.2fs)', static::class, $this->execTime)
+        $logger->debug(
+            sprintf(
+                '[%s] Completed (%.2fs)',
+                static::class,
+                $this->execTime
+            )
         );
     }
 

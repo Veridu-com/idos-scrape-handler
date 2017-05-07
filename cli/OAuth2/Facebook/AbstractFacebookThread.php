@@ -9,6 +9,7 @@ declare(strict_types = 1);
 namespace Cli\OAuth2\Facebook;
 
 use Cli\Handler\AbstractHandlerThread;
+use Cli\Utils\Backoff;
 
 abstract class AbstractFacebookThread extends AbstractHandlerThread {
     /**
@@ -19,12 +20,17 @@ abstract class AbstractFacebookThread extends AbstractHandlerThread {
      *
      * @throws \Exception
      *
-     * @return array
+     * @return \Generator
      */
-    protected function fetchAll(string $url, string $param = '') : array {
+    protected function fetchAll(string $url, string $param = '') : \Generator {
         $service = $this->worker->getService();
         $param   = sprintf('?%s', ltrim($param, '?'));
         $buffer  = [];
+        $backoff = new Backoff(
+            self::YIELD_ENABLED,
+            self::YIELD_INTERVAL,
+            self::YIELD_MULTIPLIER
+        );
         try {
             while (true) {
                 $rawBuffer = $service->request(sprintf('%s%s', $url, $param));
@@ -34,8 +40,12 @@ abstract class AbstractFacebookThread extends AbstractHandlerThread {
                     throw new \Exception('Failed to parse response');
                 }
 
-                if (isset($parsedBuffer['error']['message'])) {
-                    throw new \Exception($parsedBuffer['error']['message']);
+                if (isset($parsedBuffer['error'])) {
+                    if (isset($parsedBuffer['error']['message'])) {
+                        throw new \Exception($parsedBuffer['error']['message']);
+                    }
+
+                    throw new \Exception('Unknown API error');
                 }
 
                 if (! count($parsedBuffer['data'])) {
@@ -43,6 +53,10 @@ abstract class AbstractFacebookThread extends AbstractHandlerThread {
                 }
 
                 $buffer = array_merge($buffer, $parsedBuffer['data']);
+                if ($backoff->canYield()) {
+                    yield $buffer;
+                    $buffer = [];
+                }
 
                 if (! isset($parsedBuffer['paging']['next'])) {
                     break;
@@ -51,11 +65,15 @@ abstract class AbstractFacebookThread extends AbstractHandlerThread {
                 $param = substr($parsedBuffer['paging']['next'], strpos($parsedBuffer['paging']['next'], '?'));
             }
 
-            return $buffer;
+            if (count($buffer)) {
+                yield $buffer;
+            }
         } catch (\Exception $exception) {
             // ensure that even if an exception get thrown, all buffer is returned
             if (count($buffer)) {
-                return $buffer;
+                yield $buffer;
+
+                return;
             }
 
             throw $exception;

@@ -26,7 +26,6 @@ class Contacts extends AbstractHandlerThread {
         $logger  = $this->worker->getLogger();
 
         try {
-            // Retrieve contact data from Yahoo's API
             $rawBuffer = $service->request('https://social.yahooapis.com/v1/user/me/profile?format=json');
 
             $parsedBuffer = json_decode($rawBuffer, true);
@@ -34,8 +33,12 @@ class Contacts extends AbstractHandlerThread {
                 throw new \Exception('Failed to parse response for user id');
             }
 
-            if (isset($parsedBuffer['error']['description'])) {
-                throw new \Exception($parsedBuffer['error']['description']);
+            if (isset($parsedBuffer['error'])) {
+                if (isset($parsedBuffer['error']['description'])) {
+                    throw new \Exception($parsedBuffer['error']['description']);
+                }
+
+                throw new \Exception('Unknown API error');
             }
 
             $profileId = $parsedBuffer['profile']['guid'];
@@ -52,8 +55,12 @@ class Contacts extends AbstractHandlerThread {
                 throw new \Exception('Failed to parse response');
             }
 
-            if (isset($parsedBuffer['error']['description'])) {
-                throw new \Exception($parsedBuffer['error']['description']);
+            if (isset($parsedBuffer['error'])) {
+                if (isset($parsedBuffer['error']['description'])) {
+                    throw new \Exception($parsedBuffer['error']['description']);
+                }
+
+                throw new \Exception('Unknown API error');
             }
 
             if (! isset($parsedBuffer['contacts']['contact'])) {
@@ -65,7 +72,7 @@ class Contacts extends AbstractHandlerThread {
             return false;
         }
 
-        $numItems = count($parsedBuffer);
+        $numItems = count($parsedBuffer['contacts']['contact']);
 
         $logger->debug(
             sprintf(
@@ -81,14 +88,14 @@ class Contacts extends AbstractHandlerThread {
                     '[%s] Contacts data',
                     static::class
                 ),
-                $parsedBuffer
+                $parsedBuffer['contacts']['contact']
             );
 
             return true;
         }
 
         if ($numItems) {
-            // Send profile data to idOS API
+            // Send data to idOS API
             try {
                 $logger->debug(
                     sprintf(
@@ -99,7 +106,7 @@ class Contacts extends AbstractHandlerThread {
                 $rawEndpoint->upsertOne(
                     $this->worker->getSourceId(),
                     'contacts',
-                    $parsedBuffer
+                    $parsedBuffer['contacts']['contact']
                 );
                 $logger->debug(
                     sprintf(

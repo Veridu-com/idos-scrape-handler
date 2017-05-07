@@ -21,63 +21,64 @@ class Statuses extends AbstractTwitterThread {
             ->Raw;
 
         $logger = $this->worker->getLogger();
+        $data   = [];
 
         try {
             // Retrieve data from Twitter's API
-            $buffer = $this->fetchAllWithIds('/statuses/user_timeline.json', 'count=200');
+            $fetch = $this->fetchAllWithIds(
+                '/statuses/user_timeline.json',
+                'count=200'
+            );
+
+            foreach ($fetch as $buffer) {
+                $numItems = count($buffer);
+
+                $logger->debug(
+                    sprintf(
+                        '[%s] Retrieved %d items',
+                        static::class,
+                        $numItems
+                    )
+                );
+
+                if ($this->worker->isDryRun()) {
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Statuses data',
+                            static::class
+                        ),
+                        $buffer
+                    );
+
+                    continue;
+                }
+
+                if ($numItems) {
+                    // Send data to idOS API
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Sending data',
+                            static::class
+                        )
+                    );
+                    $data = array_merge($data, $buffer);
+                    $rawEndpoint->upsertOne(
+                        $this->worker->getSourceId(),
+                        'statuses',
+                        $data
+                    );
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Data sent',
+                            static::class
+                        )
+                    );
+                }
+            }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
-        }
-
-        $numItems = count($buffer);
-
-        $logger->debug(
-            sprintf(
-                '[%s] Retrieved %d items',
-                static::class,
-                $numItems
-            )
-        );
-
-        if ($this->worker->isDryRun()) {
-            $logger->debug(
-                sprintf(
-                    '[%s] Statuses data',
-                    static::class
-                ),
-                $buffer
-            );
-
-            return true;
-        }
-
-        if ($numItems) {
-            // Send statuses data to idOS API
-            try {
-                $logger->debug(
-                    sprintf(
-                        '[%s] Sending data',
-                        static::class
-                    )
-                );
-                $rawEndpoint->upsertOne(
-                    $this->worker->getSourceId(),
-                    'statuses',
-                    $buffer
-                );
-                $logger->debug(
-                    sprintf(
-                        '[%s] Data sent',
-                        static::class
-                    )
-                );
-            } catch (\Exception $exception) {
-                $this->lastError = $exception->getMessage();
-
-                return false;
-            }
         }
 
         return true;

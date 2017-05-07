@@ -9,6 +9,8 @@ declare(strict_types = 1);
 namespace Cli\OAuth2\Google;
 
 use Cli\Handler\AbstractHandlerThread;
+use Cli\Utils\Backoff;
+use Illuminate\Support\Arr;
 
 abstract class AbstractGoogleThread extends AbstractHandlerThread {
     /**
@@ -16,41 +18,63 @@ abstract class AbstractGoogleThread extends AbstractHandlerThread {
      *
      * @param string $url
      * @param string $param
-     * @param int    $bufferSize
+     * @param string $extractField
      *
      * @return mixed
      */
-    protected function fetchAll(string $url, string $param = '', int $bufferSize = 100) : \Generator {
-        $defaultParam = ltrim($param, '?');
-        $param        = sprintf('?%s', $defaultParam);
-        $buffer       = [];
+    protected function fetchAll(string $url, string $param = '', string $extractField = '') : \Generator {
+        $service   = $this->worker->getService();
+        $param     = sprintf('?%s', ltrim($param, '?'));
+        $buffer    = [];
+        $pageToken = '';
+        $backoff   = new Backoff(
+            self::YIELD_ENABLED,
+            self::YIELD_INTERVAL,
+            self::YIELD_MULTIPLIER
+        );
         try {
+            $rawBuffer = $service->request(sprintf('%s%s', $url, $param));
             while (true) {
-                $data = $this->worker->getService()->request(sprintf('%s%s', $url, $param));
-                $json = json_decode($data, true);
-                if ($json === null) {
+                $parsedBuffer = json_decode($rawBuffer, true);
+                if ($parsedBuffer === null) {
                     throw new \Exception('Failed to parse response');
                 }
 
-                if (isset($json['error'])) {
-                    throw new \Exception($json['error']['message']);
+                if (isset($parsedBuffer['error'])) {
+                    if (isset($parsedBuffer['error']['message'])) {
+                        throw new \Exception($parsedBuffer['error']['message']);
+                    }
+
+                    throw new \Exception('Unknown API error');
                 }
 
-                if (! count($json)) {
+                $lastPageToken = $pageToken;
+                if (isset($parsedBuffer['nextPageToken'])) {
+                    $pageToken = $parsedBuffer['nextPageToken'];
+                }
+
+                if (! empty($extractField)) {
+                    $parsedBuffer = Arr::get($parsedBuffer, $extractField);
+                    if ($parsedBuffer === null) {
+                        break;
+                    }
+                }
+
+                if (! count($parsedBuffer)) {
                     break;
                 }
 
-                $buffer = array_merge($buffer, $json);
-                if (count($buffer) > $bufferSize) {
+                $buffer = array_merge($buffer, $parsedBuffer);
+                if ($backoff->canYield()) {
                     yield $buffer;
                     $buffer = [];
                 }
 
-                if (! isset($json['nextPageToken'])) {
+                if (($lastPageToken === $pageToken) || (empty($pageToken))) {
                     break;
                 }
 
-                $param = sprintf('?%s&pageToken=%s&full', $defaultParam, $json['nextPageToken']);
+                $rawBuffer = $service->request(sprintf('%s%s&pageToken=%s&full', $url, $param, $pageToken));
             }
 
             if (count($buffer)) {
@@ -60,6 +84,8 @@ abstract class AbstractGoogleThread extends AbstractHandlerThread {
             // ensure that even if an exception get thrown, all buffer is returned
             if (count($buffer)) {
                 yield $buffer;
+
+                return;
             }
 
             throw $exception;

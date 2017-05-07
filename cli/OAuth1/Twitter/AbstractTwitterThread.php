@@ -9,6 +9,7 @@ declare(strict_types = 1);
 namespace Cli\OAuth1\Twitter;
 
 use Cli\Handler\AbstractHandlerThread;
+use Cli\Utils\Backoff;
 use Illuminate\Support\Arr;
 
 abstract class AbstractTwitterThread extends AbstractHandlerThread {
@@ -20,13 +21,18 @@ abstract class AbstractTwitterThread extends AbstractHandlerThread {
      *
      * @throws \Exception
      *
-     * @return array
+     * @return \Generator
      */
-    protected function fetchAllWithIds(string $url, string $param = '') : array {
+    protected function fetchAllWithIds(string $url, string $param = '') : \Generator {
         $service = $this->worker->getService();
         $param   = sprintf('?%s', ltrim($param, '?'));
         $buffer  = [];
         $minId   = gmp_init(PHP_INT_MAX);
+        $backoff = new Backoff(
+            self::YIELD_ENABLED,
+            self::YIELD_INTERVAL,
+            self::YIELD_MULTIPLIER
+        );
         try {
             $rawBuffer = $service->request(sprintf('%s%s', $url, $param));
             while (true) {
@@ -37,8 +43,12 @@ abstract class AbstractTwitterThread extends AbstractHandlerThread {
                     throw new \Exception('Failed to parse response');
                 }
 
-                if (isset($parsedBuffer['errors'][0]['message'])) {
-                    throw new \Exception($parsedBuffer['errors'][0]['message']);
+                if (isset($parsedBuffer['errors'])) {
+                    if (isset($parsedBuffer['errors'][0]['message'])) {
+                        throw new \Exception($parsedBuffer['errors'][0]['message']);
+                    }
+
+                    throw new \Exception('Unknown API error');
                 }
 
                 if (! count($parsedBuffer)) {
@@ -48,6 +58,10 @@ abstract class AbstractTwitterThread extends AbstractHandlerThread {
                 $minId = min($minId, min(array_column($parsedBuffer, 'id_str')));
 
                 $buffer = array_merge($buffer, $parsedBuffer);
+                if ($backoff->canYield()) {
+                    yield $buffer;
+                    $buffer = [];
+                }
 
                 if (gmp_cmp($lastId, $minId) == 0) {
                     break;
@@ -56,11 +70,15 @@ abstract class AbstractTwitterThread extends AbstractHandlerThread {
                 $rawBuffer = $service->request(sprintf('%s%s&max_id=%d', $url, $param, $minId));
             }
 
-            return $buffer;
+            if (count($buffer)) {
+                yield $buffer;
+            }
         } catch (\Exception $exception) {
             // ensure that even if an exception get thrown, all buffer is returned
             if (count($buffer)) {
-                return $buffer;
+                yield $buffer;
+
+                return;
             }
 
             throw $exception;
@@ -76,27 +94,35 @@ abstract class AbstractTwitterThread extends AbstractHandlerThread {
      *
      * @throws \Exception
      *
-     * @return array
+     * @return \Generator
      */
-    protected function fetchAllWithCursors(string $url, string $param = '', string $extractField = '') : array {
+    protected function fetchAllWithCursors(string $url, string $param = '', string $extractField = '') : \Generator {
         $service = $this->worker->getService();
         $param   = sprintf('?%s', ltrim($param, '?'));
         $buffer  = [];
         $cursor  = -1;
+        $backoff = new Backoff(
+            self::YIELD_ENABLED,
+            self::YIELD_INTERVAL,
+            self::YIELD_MULTIPLIER
+        );
         try {
             $rawBuffer = $service->request(sprintf('%s%s', $url, $param));
             while (true) {
-                $lastCursor = $cursor;
-
                 $parsedBuffer = json_decode($rawBuffer, true);
                 if ($parsedBuffer === null) {
                     throw new \Exception('Failed to parse response');
                 }
 
-                if (isset($parsedBuffer['errors'][0]['message'])) {
-                    throw new \Exception($parsedBuffer['errors'][0]['message']);
+                if (isset($parsedBuffer['errors'])) {
+                    if (isset($parsedBuffer['errors'][0]['message'])) {
+                        throw new \Exception($parsedBuffer['errors'][0]['message']);
+                    }
+
+                    throw new \Exception('Unknown API error');
                 }
 
+                $lastCursor = $cursor;
                 if (isset($parsedBuffer['next_cursor_str'])) {
                     $cursor = $parsedBuffer['next_cursor_str'];
                 }
@@ -113,6 +139,9 @@ abstract class AbstractTwitterThread extends AbstractHandlerThread {
                 }
 
                 $buffer = array_merge($buffer, $parsedBuffer);
+                if ($backoff->canYield()) {
+                    yield $buffer;
+                }
 
                 if (($lastCursor === $cursor) || ($cursor === '0')) {
                     break;
@@ -121,11 +150,13 @@ abstract class AbstractTwitterThread extends AbstractHandlerThread {
                 $rawBuffer = $service->request(sprintf('%s%s&cursor=%s', $url, $param, $cursor));
             }
 
-            return $buffer;
+            yield $buffer;
         } catch (\Exception $exception) {
             // ensure that even if an exception get thrown, all buffer is returned
             if (count($buffer)) {
-                return $buffer;
+                yield $buffer;
+
+                return;
             }
 
             throw $exception;

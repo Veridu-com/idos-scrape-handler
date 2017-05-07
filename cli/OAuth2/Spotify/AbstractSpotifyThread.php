@@ -9,6 +9,7 @@ declare(strict_types = 1);
 namespace Cli\OAuth2\Spotify;
 
 use Cli\Handler\AbstractHandlerThread;
+use Cli\Utils\Backoff;
 use Illuminate\Support\Arr;
 
 abstract class AbstractSpotifyThread extends AbstractHandlerThread {
@@ -20,12 +21,17 @@ abstract class AbstractSpotifyThread extends AbstractHandlerThread {
      *
      * @throws \Exception
      *
-     * @return array
+     * @return \Generator
      */
-    protected function fetchAll(string $url, string $param = '', string $extractField = '') : array {
+    protected function fetchAll(string $url, string $param = '', string $extractField = '') : \Generator {
         $service = $this->worker->getService();
         $url     = sprintf('%s?%s', $url, ltrim($param, '?'));
         $buffer  = [];
+        $backoff = new Backoff(
+            self::YIELD_ENABLED,
+            self::YIELD_INTERVAL,
+            self::YIELD_MULTIPLIER
+        );
         try {
             while (true) {
                 $rawBuffer = $service->request($url);
@@ -35,8 +41,12 @@ abstract class AbstractSpotifyThread extends AbstractHandlerThread {
                     throw new \Exception('Failed to parse response');
                 }
 
-                if (isset($parsedBuffer['error']['message'])) {
-                    throw new \Exception($parsedBuffer['error']['message']);
+                if (isset($parsedBuffer['error'])) {
+                    if (isset($parsedBuffer['error']['message'])) {
+                        throw new \Exception($parsedBuffer['error']['message']);
+                    }
+
+                    throw new \Exception('Unknown API error');
                 }
 
                 $url = $parsedBuffer['next'];
@@ -53,17 +63,25 @@ abstract class AbstractSpotifyThread extends AbstractHandlerThread {
                 }
 
                 $buffer = array_merge($buffer, $parsedBuffer);
+                if ($backoff->canYield()) {
+                    yield $buffer;
+                    $buffer = [];
+                }
 
                 if ($url === null) {
                     break;
                 }
             }
 
-            return $buffer;
+            if (count($buffer)) {
+                yield $buffer;
+            }
         } catch (\Exception $exception) {
             // ensure that even if an exception get thrown, all buffer is returned
             if (count($buffer)) {
-                return $buffer;
+                yield $buffer;
+
+                return;
             }
 
             throw $exception;

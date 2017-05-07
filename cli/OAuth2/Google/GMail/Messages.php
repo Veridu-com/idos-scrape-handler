@@ -8,16 +8,28 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Google\GMail;
 
-use Cli\Handler\AbstractHandlerThread;
+use Cli\OAuth2\Google\AbstractGoogleThread;
+use Cli\Utils\Backoff;
 
 /**
  * Gmail Messages's Profile Scraper.
  */
-class Messages extends AbstractHandlerThread {
+class Messages extends AbstractGoogleThread {
     /**
-     * {@inheritdoc}
+     * Fetches Gmail message sample data.
+     *
+     * @throws \Exception
+     *
+     * @return \Generator
      */
-    public function execute() : bool {
+    private function fetchMessageSample() : \Generator {
+        $service = $this->worker->getService();
+        $buffer  = [];
+        $backoff = new Backoff(
+            self::YIELD_ENABLED,
+            self::YIELD_INTERVAL,
+            self::YIELD_MULTIPLIER
+        );
         $slices = [
             [
                 'after'  => strtotime('45 days ago'),
@@ -40,107 +52,133 @@ class Messages extends AbstractHandlerThread {
                 'before' => strtotime('3000 days ago')
             ]
         ];
-
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-        } catch (\Exception $e) {
-            $this->lastError = $exception->getMessage();
-        }
+            foreach ($slices as $slice) {
+                $query = sprintf(
+                    'after:%s before:%s is:sent',
+                    date('Y/m/d', $slice['after']),
+                    date('Y/m/d', $slice['before'])
+                );
+                $fetch = $this->fetchAll(
+                    'https://www.googleapis.com/gmail/v1/users/me/threads',
+                    sprintf('maxResults=20&q=%s', urlencode($query)),
+                    'threads'
+                );
 
-        $buffer = [];
-        foreach ($slices as $slice) {
-            try {
-                // Retrieve profile data from Google's API
-                $query = sprintf('after:%s before:%s is:sent', date('Y/m/d', $slice['after']), date('Y/m/d', $slice['before']));
-                $query = sprintf('maxResults=25&q=%s', urlencode($query));
-
-                $rawBuffer = $this->worker->getService()->request(sprintf('https://www.googleapis.com/gmail/v1/users/me/threads?%s', $query));
-            } catch (\Exception $exception) {
-                $this->lastError = $exception->getMessage();
-
-                return false;
-            }
-
-            $parsedBuffer = json_decode($rawBuffer, true);
-            if ($parsedBuffer === null) {
-                $this->lastError = 'Failed to parse response';
-
-                return false;
-            }
-
-            if (isset($parsedBuffer['error'])) {
-                $this->lastError = $parsedBuffer['error']['message'];
-
-                return false;
-            }
-
-            if (empty($parsedBuffer['threads'])) {
-                break;
-            }
-
-            foreach ($parsedBuffer['threads'] as $thread) {
-                $data       = $this->worker->getService()->request("https://www.googleapis.com/gmail/v1/users/me/threads/{$thread['id']}?format=metadata");
-                $jsonThread = json_decode($data, true);
-
-                if (empty($jsonThread)) {
-                    $this->lastError = 'Failed to parse response';
-                    continue;
-                }
-
-                if (isset($jsonThread['error'])) {
-                    $this->lastError = "[{$jsonThread['error']['code']}] {$jsonThread['error']['message']}";
-                    continue;
-                }
-
-                $buffer = array_merge($buffer, $jsonThread['messages']);
-                if ((count($buffer) % 25) == 0) {
-                    if (! $this->worker->isDryRun()) {
-                        // Send message data to idOS API
+                foreach ($fetch as $threads) {
+                    foreach ($threads as $thread) {
                         try {
-                            $this->worker->getLogger()->debug(
+                            $rawBuffer = $service->request(
                                 sprintf(
-                                    '[%s] Uploading messages',
-                                    static::class
+                                    'https://www.googleapis.com/gmail/v1/users/me/threads/%s?format=metadata',
+                                    $thread['id']
                                 )
                             );
-                            $rawEndpoint->upsertOne(
-                                $this->worker->getSourceId(),
-                                'messages',
-                                $buffer
-                            );
-                        } catch (\Exception $exception) {
-                            $this->lastError = $exception->getMessage();
 
-                            return false;
+                            $parsedBuffer = json_decode($rawBuffer, true);
+                            if ($parsedBuffer === null) {
+                                throw new \Exception('Failed to parse response');
+                            }
+
+                            if (isset($parsedBuffer['error'])) {
+                                if (isset($parsedBuffer['error']['message'])) {
+                                    throw new \Exception($parsedBuffer['error']['message']);
+                                }
+
+                                throw new \Exception('Unknown API error');
+                            }
+
+                            $buffer = array_merge($buffer, $parsedBuffer['messages']);
+                            if ($backoff->canYield()) {
+                                yield $buffer;
+                                $buffer = [];
+                            }
+                        } catch (\Exception $exception) {
+                            // exceptions on thread retrieval should not stop outer retrieval
                         }
                     }
-
-                    $buffer = [];
                 }
             }
 
-            if (! $this->worker->isDryRun()) {
-                // Send message data to idOS API
-                try {
-                    $this->worker->getLogger()->debug(
+            if (count($buffer)) {
+                yield $buffer;
+            }
+        } catch (\Exception $exception) {
+            // ensure that even if an exception get thrown, all buffer is returned
+            if (count($buffer)) {
+                yield $buffer;
+
+                return;
+            }
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+        $data   = [];
+
+        try {
+            // Retrieve data from Google's API
+            $fetch = $this->fetchMessageSample();
+
+            foreach ($fetch as $buffer) {
+                $numItems = count($buffer);
+
+                $logger->debug(
+                    sprintf(
+                        '[%s] Retrieved %d items',
+                        static::class,
+                        $numItems
+                    )
+                );
+
+                if ($this->worker->isDryRun()) {
+                    $logger->debug(
                         sprintf(
-                            '[%s] Uploading messages',
+                            '[%s] Messages data',
+                            static::class
+                        ),
+                        $buffer
+                    );
+
+                    continue;
+                }
+
+                if ($numItems) {
+                    // Send data to idOS API
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Sending data',
                             static::class
                         )
                     );
+                    $data = array_merge($data, $buffer);
                     $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'messages',
-                        $buffer
+                        $data
                     );
-                } catch (\Exception $exception) {
-                    $this->lastError = $exception->getMessage();
-
-                    return false;
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Data sent',
+                            static::class
+                        )
+                    );
                 }
             }
+        } catch (\Exception $exception) {
+            $this->lastError = $exception->getMessage();
+
+            return false;
         }
 
         return true;

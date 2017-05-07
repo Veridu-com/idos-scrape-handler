@@ -18,50 +18,77 @@ class Profile extends AbstractHandlerThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            // Retrieve profile data from Google's API
             $rawBuffer = $this->worker->getService()->request('https://www.googleapis.com/gmail/v1/users/me/profile');
+
+            $parsedBuffer = json_decode($rawBuffer, true);
+            if ($parsedBuffer === null) {
+                throw new \Exception('Failed to parse response');
+            }
+
+            if (isset($parsedBuffer['error'])) {
+                if (isset($parsedBuffer['error']['message'])) {
+                    throw new \Exception($parsedBuffer['error']['message']);
+                }
+
+                throw new \Exception('Unknown API error');
+            }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
 
-        $parsedBuffer = json_decode($rawBuffer, true);
-        if ($parsedBuffer === null) {
-            $this->lastError = 'Failed to parse response';
+        $parsedBuffer['updated'] = time();
 
-            return false;
+        $logger->debug(
+            sprintf(
+                '[%s] Retrieved profile',
+                static::class
+            )
+        );
+
+        if ($this->worker->isDryRun()) {
+            $logger->debug(
+                sprintf(
+                    '[%s] Profile data',
+                    static::class
+                ),
+                $parsedBuffer
+            );
+
+            return true;
         }
 
-        if (isset($parsedBuffer['error'])) {
-            $this->lastError = $parsedBuffer['error']['message'];
+        // Send data to idOS API
+        try {
+            $logger->debug(
+                sprintf(
+                    '[%s] Sending data',
+                    static::class
+                )
+            );
+            $rawEndpoint->upsertOne(
+                $this->worker->getSourceId(),
+                'profile_gmail',
+                $parsedBuffer
+            );
+            $logger->debug(
+                sprintf(
+                    '[%s] Data sent',
+                    static::class
+                )
+            );
+        } catch (\Exception $exception) {
+            $this->lastError = $exception->getMessage();
 
             return false;
-        }
-
-        if (! $this->worker->isDryRun()) {
-            // Send profile data to idOS API
-            try {
-                $this->worker->getLogger()->debug(
-                    sprintf(
-                        '[%s] Uploading profile',
-                        static::class
-                    )
-                );
-                $rawEndpoint->upsertOne(
-                    $this->worker->getSourceId(),
-                    'profile_gmail',
-                    $parsedBuffer
-                );
-            } catch (\Exception $exception) {
-                $this->lastError = $exception->getMessage();
-
-                return false;
-            }
         }
 
         return true;

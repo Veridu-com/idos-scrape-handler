@@ -25,7 +25,6 @@ class Profile extends AbstractHandlerThread {
         $logger = $this->worker->getLogger();
 
         try {
-            // Retrieve profile data from Facebook's API
             $rawBuffer = $this->worker->getService()->request('/me?fields=id,first_name,last_name,gender,locale,languages,age_range,verified,birthday,education,email,hometown,location,picture.width(1024).height(1024),relationship_status,significant_other,work,friends');
 
             $parsedBuffer = json_decode($rawBuffer, true);
@@ -33,8 +32,12 @@ class Profile extends AbstractHandlerThread {
                 throw new \Exception('Failed to parse response');
             }
 
-            if (isset($parsedBuffer['error']['message'])) {
-                throw new \Exception($parsedBuffer['error']['message']);
+            if (isset($parsedBuffer['error'])) {
+                if (isset($parsedBuffer['error']['message'])) {
+                    throw new \Exception($parsedBuffer['error']['message']);
+                }
+
+                throw new \Exception('Unknown API error');
             }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
@@ -61,7 +64,7 @@ class Profile extends AbstractHandlerThread {
             return true;
         }
 
-        // Send profile data to idOS API
+        // Send data to idOS API
         try {
             $logger->debug(
                 sprintf(
