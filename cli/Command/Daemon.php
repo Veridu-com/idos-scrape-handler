@@ -114,6 +114,9 @@ class Daemon extends Command {
             error_reporting(-1);
         }
 
+        // Dry Run
+        $dryRun = ! empty($input->getOption('dryRun'));
+
         // Health check
         $healthCheck = ! empty($input->getOption('healthCheck'));
         if ($healthCheck) {
@@ -171,7 +174,7 @@ class Daemon extends Command {
          */
         $gearman->addFunction(
             $functionName,
-            function (\GearmanJob $job) use ($logger, $handlerPublicKey, $handlerPrivateKey, $devMode, &$jobCount, &$lastJob) {
+            function (\GearmanJob $job) use ($logger, $handlerPublicKey, $handlerPrivateKey, $devMode, $dryRun, &$jobCount, &$lastJob) {
                 $logger->info('Scrape job added');
                 $jobData = json_decode($job->workload(), true);
                 if ($jobData === null) {
@@ -220,7 +223,7 @@ class Daemon extends Command {
                     $jobData['userName'],
                     (int) $jobData['sourceId'],
                     $devMode,
-                    empty($input->getOption('dryRun')) ? false : true
+                    $dryRun
                 );
 
                 $logger->info('Job completed', ['time' => microtime(true) - $init]);
