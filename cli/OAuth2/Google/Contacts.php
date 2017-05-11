@@ -18,44 +18,68 @@ class Contacts extends AbstractHandlerThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            // Retrieve profile data from Google's API
-            $rawBuffer = $this->worker->getService()->request('https://www.google.com/m8/feeds/contacts/default/full?v=3.0&alt=json');
+            $rawBuffer = $this->worker->getService()->request(
+                'https://www.google.com/m8/feeds/contacts/default/full?v=3.0&alt=json'
+            );
             $rawBuffer = preg_replace('/[$]/u', '', $rawBuffer);
+
+            $parsedBuffer = json_decode($rawBuffer, true);
+            if ($parsedBuffer === null) {
+                throw new \Exception('Failed to parse response');
+            }
+
+            if (isset($parsedBuffer['error'])) {
+                if (isset($parsedBuffer['error']['error_description'])) {
+                    throw new \Exception($parsedBuffer['error']['error_description']);
+                }
+
+                throw new \Exception('Unknown API error');
+            }
+
+            if (! isset($parsedBuffer['feed']['entry'])) {
+                throw new \Exception('No entries found');
+            }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
 
-        $parsedBuffer = json_decode($rawBuffer, true);
-        if ($parsedBuffer === null) {
-            $this->lastError = 'Failed to parse response';
+        $numItems = count($parsedBuffer['feed']['entry']);
 
-            return false;
+        $logger->debug(
+            sprintf(
+                '[%s] Retrieved %d items',
+                static::class,
+                $numItems
+            )
+        );
+
+        if ($this->worker->isDryRun()) {
+            $logger->debug(
+                sprintf(
+                    '[%s] Contacts data',
+                    static::class
+                ),
+                $parsedBuffer['feed']['entry']
+            );
+
+            return true;
         }
 
-        if (isset($parsedBuffer['error'])) {
-            $this->lastError = $parsedBuffer['error']['error_description'];
-
-            return false;
-        }
-
-        if (! isset($parsedBuffer['feed']) && ! isset($parsedBuffer['feed']['entry'])) {
-            $this->lastError = 'No entries found';
-
-            return false;
-        }
-
-        if (! $this->worker->isDryRun()) {
-            // Send contacts data to idOS API
+        if ($numItems) {
+            // Send data to idOS API
             try {
-                $this->worker->getLogger()->debug(
+                $logger->debug(
                     sprintf(
-                        '[%s] Uploading contacts',
+                        '[%s] Sending data',
                         static::class
                     )
                 );
@@ -63,6 +87,12 @@ class Contacts extends AbstractHandlerThread {
                     $this->worker->getSourceId(),
                     'contacts',
                     $parsedBuffer['feed']['entry']
+                );
+                $logger->debug(
+                    sprintf(
+                        '[%s] Data sent',
+                        static::class
+                    )
                 );
             } catch (\Exception $exception) {
                 $this->lastError = $exception->getMessage();

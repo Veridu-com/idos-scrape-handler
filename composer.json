@@ -23,6 +23,7 @@
         }
     ],
     "require": {
+        "illuminate/support": "^5.4",
         "lusitanian/oauth": "dev-veridu",
         "monolog/monolog": "^1.13",
         "roave/security-advisories": "dev-master",

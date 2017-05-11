@@ -16,73 +16,72 @@ class Playlists extends AbstractSpotifyThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+        $data   = [];
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            $playlists = [];
+            // Retrieve data from Spotify's API
+            $fetch = $this->fetchAll(
+                '/me/playlists',
+                'limit=50',
+                'items'
+            );
 
-            $rawIdBuffer = $this->worker->getService()->request('/me');
+            foreach ($fetch as $buffer) {
+                $numItems = count($buffer);
 
-            $parsedIdBuffer = json_decode($rawIdBuffer, true);
-            if ($parsedIdBuffer === null) {
-                $this->lastError = 'Failed to parse id response';
+                $logger->debug(
+                    sprintf(
+                        '[%s] Retrieved %d items',
+                        static::class,
+                        $numItems
+                    )
+                );
 
-                return false;
-            }
+                if ($this->worker->isDryRun()) {
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Playlists data',
+                            static::class
+                        ),
+                        $buffer
+                    );
 
-            if (isset($parsedIdBuffer['error'])) {
-                $this->lastError = $parsedIdBuffer['error']['message'];
-
-                return false;
-            }
-
-            $profileId = $parsedIdBuffer['id'];
-
-            foreach ($this->fetchAll('/users/' . $profileId . '/playlists', '') as $json) {
-                if ($json === false) {
-                    break;
+                    continue;
                 }
 
-                if (count($json)) {
-                    foreach ($json as $item) {
-                        $playlists[] = $item;
-                    }
-
-                    if ($this->worker->isDryRun()) {
-                        $this->worker->getLogger()->debug(
-                            sprintf(
-                                '[%s] Retrieved %d new items (%d total)',
-                                static::class,
-                                count($json),
-                                count($playlists)
-                            )
-                        );
-                        continue;
-                    }
-
-                    // Send post data to idOS API
-                    $this->worker->getLogger()->debug(
+                if ($numItems) {
+                    // Send data to idOS API
+                    $logger->debug(
                         sprintf(
-                            '[%s] Uploading %d new items (%d total)',
-                            static::class,
-                            count($json),
-                            count($playlists)
+                            '[%s] Sending data',
+                            static::class
                         )
                     );
+                    $data = array_merge($data, $buffer);
                     $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'playlists',
-                        $playlists
+                        $data
+                    );
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Data sent',
+                            static::class
+                        )
                     );
                 }
             }
-
-            return true;
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
+
+        return true;
     }
 }

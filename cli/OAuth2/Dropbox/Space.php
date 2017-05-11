@@ -6,14 +6,14 @@
 
 declare(strict_types = 1);
 
-namespace Cli\OAuth2\Yahoo;
+namespace Cli\OAuth2\Dropbox;
 
 use Cli\Handler\AbstractHandlerThread;
 
 /**
- * Yahoo's Profile Scraper.
+ * Dropbox's Space Scraper.
  */
-class Profile extends AbstractHandlerThread {
+class Space extends AbstractHandlerThread {
     /**
      * {@inheritdoc}
      */
@@ -25,8 +25,12 @@ class Profile extends AbstractHandlerThread {
         $logger = $this->worker->getLogger();
 
         try {
+            // Retrieve space usage data from Dropbox's API
             $rawBuffer = $this->worker->getService()->request(
-                'https://social.yahooapis.com/v1/user/me/profile?format=json'
+                'users/get_space_usage',
+                'POST',
+                null,
+                ['Content-Type' => '']
             );
 
             $parsedBuffer = json_decode($rawBuffer, true);
@@ -34,12 +38,8 @@ class Profile extends AbstractHandlerThread {
                 throw new \Exception('Failed to parse response');
             }
 
-            if (isset($parsedBuffer['error'])) {
-                if (isset($parsedBuffer['error']['description'])) {
-                    throw new \Exception($parsedBuffer['error']['description']);
-                }
-
-                throw new \Exception('Unknown API error');
+            if (isset($parsedBuffer['error_description'])) {
+                throw new \Exception($parsedBuffer['error_description']);
             }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
@@ -47,11 +47,9 @@ class Profile extends AbstractHandlerThread {
             return false;
         }
 
-        $parsedBuffer['updated'] = time();
-
         $logger->debug(
             sprintf(
-                '[%s] Retrieved profile',
+                '[%s] Retrieved space usage',
                 static::class
             )
         );
@@ -59,7 +57,7 @@ class Profile extends AbstractHandlerThread {
         if ($this->worker->isDryRun()) {
             $logger->debug(
                 sprintf(
-                    '[%s] Profile data',
+                    '[%s] Space data',
                     static::class
                 ),
                 $parsedBuffer
@@ -68,7 +66,7 @@ class Profile extends AbstractHandlerThread {
             return true;
         }
 
-        // Send data to idOS API
+        // Send space usage data to idOS API
         try {
             $logger->debug(
                 sprintf(
@@ -78,7 +76,7 @@ class Profile extends AbstractHandlerThread {
             );
             $rawEndpoint->upsertOne(
                 $this->worker->getSourceId(),
-                'profile',
+                'space',
                 $parsedBuffer
             );
             $logger->debug(

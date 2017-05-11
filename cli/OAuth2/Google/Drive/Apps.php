@@ -18,52 +18,68 @@ class Apps extends AbstractGoogleThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+        $data   = [];
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            $buffer = [];
-            foreach ($this->fetchAll('https://www.googleapis.com/drive/v2/apps', '') as $json) {
-                if ($json === false) {
-                    break;
+            // Retrieve data from Google's API
+            $fetch = $this->fetchAll('https://www.googleapis.com/drive/v2/apps');
+
+            foreach ($fetch as $buffer) {
+                $numItems = count($buffer);
+
+                $logger->debug(
+                    sprintf(
+                        '[%s] Retrieved %d items',
+                        static::class,
+                        $numItems
+                    )
+                );
+
+                if ($this->worker->isDryRun()) {
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Apps data',
+                            static::class
+                        ),
+                        $buffer
+                    );
+
+                    continue;
                 }
 
-                if (count($json)) {
-                    $buffer = array_merge($buffer, $json);
-                    if ($this->worker->isDryRun()) {
-                        $this->worker->getLogger()->debug(
-                            sprintf(
-                                '[%s] Retrieved %d new items (%d total)',
-                                static::class,
-                                count($json),
-                                count($buffer)
-                            )
-                        );
-                        continue;
-                    }
-
-                    // Send post data to idOS API
-                    $this->worker->getLogger()->debug(
+                if ($numItems) {
+                    // Send data to idOS API
+                    $logger->debug(
                         sprintf(
-                            '[%s] Uploading %d new items (%d total)',
-                            static::class,
-                            count($json),
-                            count($buffer)
+                            '[%s] Sending data',
+                            static::class
                         )
                     );
+                    $data = array_merge($data, $buffer);
                     $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'apps',
-                        $buffer
+                        $data
+                    );
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Data sent',
+                            static::class
+                        )
                     );
                 }
             }
-
-            return true;
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
+
+        return true;
     }
 }

@@ -8,68 +8,79 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Google\Plus;
 
-use Cli\Handler\AbstractHandlerThread;
+use Cli\OAuth2\Google\AbstractGoogleThread;
 
 /**
  * Google Plus Circle's Profile Scraper.
  */
-class Circles extends AbstractHandlerThread {
+class Circles extends AbstractGoogleThread {
     /**
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+        $data   = [];
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            // Retrieve profile data from Google's API
-            $rawBuffer = $this->worker->getService()->request('https://www.googleapis.com/plus/v1/people/me/people/visible');
+            $fetch = $this->fetchAll(
+                'https://www.googleapis.com/plus/v1/people/me/people/visible',
+                'maxResults=100',
+                'items'
+            );
+
+            foreach ($fetch as $buffer) {
+                $numItems = count($buffer);
+
+                $logger->debug(
+                    sprintf(
+                        '[%s] Retrieved %d items',
+                        static::class,
+                        $numItems
+                    )
+                );
+
+                if ($this->worker->isDryRun()) {
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Circles data',
+                            static::class
+                        ),
+                        $buffer
+                    );
+
+                    continue;
+                }
+
+                if ($numItems) {
+                    // Send data to idOS API
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Sending data',
+                            static::class
+                        )
+                    );
+                    $data = array_merge($data, $buffer);
+                    $rawEndpoint->upsertOne(
+                        $this->worker->getSourceId(),
+                        'circles',
+                        $data
+                    );
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Data sent',
+                            static::class
+                        )
+                    );
+                }
+            }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
-        }
-
-        $parsedBuffer = json_decode($rawBuffer, true);
-        if ($parsedBuffer === null) {
-            $this->lastError = 'Failed to parse response';
-
-            return false;
-        }
-
-        if (isset($parsedBuffer['error'])) {
-            $this->lastError = $parsedBuffer['error']['message'];
-
-            return false;
-        }
-
-        if (! isset($parsedBuffer['items'])) {
-            $this->lastError = 'Unexpected response format';
-
-            return false;
-        }
-
-        if (count($parsedBuffer['items'])) {
-            if (! $this->worker->isDryRun()) {
-                // Send circle data to idOS API
-                try {
-                    $this->worker->getLogger()->debug(
-                        sprintf(
-                            '[%s] Uploading circles',
-                            static::class
-                        )
-                    );
-                    $rawEndpoint->upsertOne(
-                        $this->worker->getSourceId(),
-                        'circles',
-                        $parsedBuffer['items']
-                    );
-                } catch (\Exception $exception) {
-                    $this->lastError = $exception->getMessage();
-
-                    return false;
-                }
-            }
         }
 
         return true;

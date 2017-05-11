@@ -13,52 +13,70 @@ class Tagged extends AbstractFacebookThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+        $data   = [];
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            $buffer = [];
-            foreach ($this->fetchAll('/me/tagged', 'fields=from,to,message,message_tags,picture,link,name,caption,description,icon,privacy,type,status_type,created_time,updated_time,is_hidden,is_expired,likes,comments') as $json) {
-                if ($json === false) {
-                    break;
+            $fetch = $this->fetchAll(
+                '/me/tagged',
+                'fields=from,to,message,message_tags,picture,link,name,caption,description,icon,privacy,type,status_type,created_time,updated_time,is_hidden,is_expired,likes,comments'
+            );
+
+            foreach ($fetch as $buffer) {
+                $numItems = count($buffer);
+
+                $logger->debug(
+                    sprintf(
+                        '[%s] Retrieved %d items',
+                        static::class,
+                        $numItems
+                    )
+                );
+
+                if ($this->worker->isDryRun()) {
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Tagged data',
+                            static::class
+                        ),
+                        $buffer
+                    );
+
+                    continue;
                 }
 
-                if (count($json)) {
-                    $buffer = array_merge($buffer, $json);
-                    if ($this->worker->isDryRun()) {
-                        $this->worker->getLogger()->debug(
-                            sprintf(
-                                '[%s] Retrieved %d new items (%d total)',
-                                static::class,
-                                count($json),
-                                count($buffer)
-                            )
-                        );
-                        continue;
-                    }
-
-                    // Send post data to idOS API
-                    $this->worker->getLogger()->debug(
+                if ($numItems) {
+                    // Send data to idOS API
+                    $logger->debug(
                         sprintf(
-                            '[%s] Uploading %d new items (%d total)',
-                            static::class,
-                            count($json),
-                            count($buffer)
+                            '[%s] Sending data',
+                            static::class
                         )
                     );
+                    $data = array_merge($data, $buffer);
                     $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'tagged',
-                        $buffer
+                        $data
+                    );
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Data sent',
+                            static::class
+                        )
                     );
                 }
             }
-
-            return true;
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
+
+        return true;
     }
 }

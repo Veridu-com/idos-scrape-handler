@@ -18,52 +18,79 @@ class Profile extends AbstractHandlerThread {
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            // Retrieve profile data from Linkedin's API
-            $rawBuffer = $this->worker->getService()->request('/people/~:(api-standard-profile-request,current-share,email-address,first-name,formatted-name,formatted-phonetic-name,headline,id,industry,last-name,location:(country:(code),name),maiden-name,num-connections,num-connections-capped,phonetic-first-name,phonetic-last-name,picture-url,picture-urls::(original),positions:(id,title,summary,start-date,end-date,is-current,company:(id,name,type,industry,ticker)),public-profile-url,site-standard-profile-request,specialties,summary)?format=json');
+            $rawBuffer = $this->worker->getService()->request(
+                '/people/~:(api-standard-profile-request,current-share,email-address,first-name,formatted-name,formatted-phonetic-name,headline,id,industry,last-name,location:(country:(code),name),maiden-name,num-connections,num-connections-capped,phonetic-first-name,phonetic-last-name,picture-url,picture-urls::(original),positions:(id,title,summary,start-date,end-date,is-current,company:(id,name,type,industry,ticker)),public-profile-url,site-standard-profile-request,specialties,summary)?format=json'
+            );
+
+            $parsedBuffer = json_decode($rawBuffer, true);
+            if ($parsedBuffer === null) {
+                throw new \Exception('Failed to parse response');
+            }
+
+            if (isset($parsedBuffer['errorCode'])) {
+                if (isset($parsedBuffer['message'])) {
+                    throw new \Exception($parsedBuffer['message']);
+                }
+
+                throw new \Exception('Unknown API error');
+            }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
 
-        $parsedBuffer = json_decode($rawBuffer, true);
-        if ($parsedBuffer === null) {
-            $this->lastError = 'Failed to parse response';
-
-            return false;
-        }
-
-        if (isset($parsedBuffer['errorCode'])) {
-            $this->lastError = $parsedBuffer['message'];
-
-            return false;
-        }
-
         $parsedBuffer['updated'] = time();
 
-        if (! $this->worker->isDryRun()) {
-            // Send profile data to idOS API
-            try {
-                $this->worker->getLogger()->debug(
-                    sprintf(
-                        '[%s] Uploading profile',
-                        static::class
-                    )
-                );
-                $rawEndpoint->upsertOne(
-                    $this->worker->getSourceId(),
-                    'profile',
-                    $parsedBuffer
-                );
-            } catch (\Exception $exception) {
-                $this->lastError = $exception->getMessage();
+        $logger->debug(
+            sprintf(
+                '[%s] Retrieved profile',
+                static::class
+            )
+        );
 
-                return false;
-            }
+        if ($this->worker->isDryRun()) {
+            $logger->debug(
+                sprintf(
+                    '[%s] Profile data',
+                    static::class
+                ),
+                $parsedBuffer
+            );
+
+            return true;
+        }
+
+        // Send data to idOS API
+        try {
+            $logger->debug(
+                sprintf(
+                    '[%s] Sending data',
+                    static::class
+                )
+            );
+            $rawEndpoint->upsertOne(
+                $this->worker->getSourceId(),
+                'profile',
+                $parsedBuffer
+            );
+            $logger->debug(
+                sprintf(
+                    '[%s] Data sent',
+                    static::class
+                )
+            );
+        } catch (\Exception $exception) {
+            $this->lastError = $exception->getMessage();
+
+            return false;
         }
 
         return true;

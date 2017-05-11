@@ -52,6 +52,12 @@ class Daemon extends Command {
                 InputOption::VALUE_REQUIRED,
                 'Path to log file'
             )
+            ->addOption(
+                'dryRun',
+                'r',
+                InputOption::VALUE_NONE,
+                'On dry run mode, no data is sent to idOS API'
+            )
             ->addArgument(
                 'handlerPublicKey',
                 InputArgument::REQUIRED,
@@ -107,6 +113,9 @@ class Daemon extends Command {
             ini_set('display_errors', 'On');
             error_reporting(-1);
         }
+
+        // Dry Run
+        $dryRun = ! empty($input->getOption('dryRun'));
 
         // Health check
         $healthCheck = ! empty($input->getOption('healthCheck'));
@@ -165,7 +174,7 @@ class Daemon extends Command {
          */
         $gearman->addFunction(
             $functionName,
-            function (\GearmanJob $job) use ($logger, $handlerPublicKey, $handlerPrivateKey, $devMode, &$jobCount, &$lastJob) {
+            function (\GearmanJob $job) use ($logger, $handlerPublicKey, $handlerPrivateKey, $devMode, $dryRun, &$jobCount, &$lastJob) {
                 $logger->info('Scrape job added');
                 $jobData = json_decode($job->workload(), true);
                 if ($jobData === null) {
@@ -213,7 +222,8 @@ class Daemon extends Command {
                     $jobData['publicKey'],
                     $jobData['userName'],
                     (int) $jobData['sourceId'],
-                    $devMode
+                    $devMode,
+                    $dryRun
                 );
 
                 $logger->info('Job completed', ['time' => microtime(true) - $init]);

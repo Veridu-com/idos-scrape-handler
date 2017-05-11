@@ -8,110 +8,150 @@ declare(strict_types = 1);
 
 namespace Cli\OAuth2\Google\Plus;
 
-use Cli\Handler\AbstractHandlerThread;
+use Cli\OAuth2\Google\AbstractGoogleThread;
 
 /**
  * Google Plus Activities's Profile Scraper.
  */
-class Activities extends AbstractHandlerThread {
+class Activities extends AbstractGoogleThread {
+    /**
+     * Fetches google activities data.
+     *
+     * @throws \Exception
+     *
+     * @return \Generator
+     */
+    private function fetchAllActivities() : \Generator {
+        $service = $this->worker->getService();
+        $buffer  = [];
+        $backoff = new Backoff(
+            self::YIELD_ENABLED,
+            self::YIELD_INTERVAL,
+            self::YIELD_MULTIPLIER
+        );
+        try {
+            $rawBuffer = $service->request(
+                'https://www.googleapis.com/plus/v1/people/me/activities/public?maxResults=100'
+            );
+            while (true) {
+                $parsedBuffer = json_decode($rawBuffer, true);
+                if ($parsedBuffer === null) {
+                    throw new \Exception('Failed to parse response');
+                }
+
+                if (isset($parsedBuffer['error'])) {
+                    if (isset($parsedBuffer['error']['message'])) {
+                        throw new \Exception($parsedBuffer['error']['message']);
+                    }
+
+                    throw new \Exception('Unknown API error');
+                }
+
+                if (empty($parsedBuffer['items'])) {
+                    break;
+                }
+
+                $buffer = array_merge($buffer, $parsedBuffer['items']);
+                if ($backoff->canYield()) {
+                    yield $buffer;
+                    $buffer = [];
+                }
+
+                if (! isset($parsedBuffer['pageToken'])) {
+                    break;
+                }
+
+                $rawBuffer = $service->request(
+                    sprintf(
+                        'https://www.googleapis.com/plus/v1/people/me/activities/public?maxResults=100&pageToken=%s',
+                        $parsedBuffer['pageToken']
+                    )
+                );
+            }
+
+            if (count($buffer)) {
+                yield $buffer;
+            }
+        } catch (\Exception $exception) {
+            // ensure that even if an exception get thrown, all buffer is returned
+            if (count($buffer)) {
+                yield $buffer;
+
+                return;
+            }
+
+            throw $exception;
+        }
+    }
+
     /**
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+        $data   = [];
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            // Retrieve profile data from Google's API
-            $rawBuffer = $this->worker->getService()->request('https://www.googleapis.com/plus/v1/people/me/activities/public?maxResults=100');
+            $fetch = $this->fetchAll(
+                'https://www.googleapis.com/plus/v1/people/me/activities/public',
+                'maxResults=100',
+                'items'
+            );
+
+            foreach ($fetch as $buffer) {
+                $numItems = count($buffer);
+
+                $logger->debug(
+                    sprintf(
+                        '[%s] Retrieved %d items',
+                        static::class,
+                        $numItems
+                    )
+                );
+
+                if ($this->worker->isDryRun()) {
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Activities data',
+                            static::class
+                        ),
+                        $buffer
+                    );
+
+                    continue;
+                }
+
+                if ($numItems) {
+                    // Send activities to idOS API
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Sending data',
+                            static::class
+                        )
+                    );
+                    $data = array_merge($data, $buffer);
+                    $rawEndpoint->upsertOne(
+                        $this->worker->getSourceId(),
+                        'activities',
+                        $data
+                    );
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Data sent',
+                            static::class
+                        )
+                    );
+                }
+            }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
-
-        $parsedBuffer = json_decode($rawBuffer, true);
-        if ($parsedBuffer === null) {
-            $this->lastError = 'Failed to parse response';
-
-            return false;
-        }
-
-        if (isset($parsedBuffer['error'])) {
-            $this->lastError = $parsedBuffer['error']['message'];
-
-            return false;
-        }
-
-        $buffer = $parsedBuffer['items'];
-        if (! $this->worker->isDryRun()) {
-            // Send activities data to idOS API
-            try {
-                $this->worker->getLogger()->debug(
-                    sprintf(
-                        '[%s] Uploading activities',
-                        static::class
-                    )
-                );
-                $rawEndpoint->upsertOne(
-                    $this->worker->getSourceId(),
-                    'activities',
-                    $buffer
-                );
-            } catch (\Exception $exception) {
-                $this->lastError = $exception->getMessage();
-
-                return false;
-            }
-        }
-
-        $buffer = [];
-        do {
-            if (! isset($parsedBuffer['pageToken'])) {
-                break;
-            }
-
-            $data         = $this->worker->getService()->request('https://www.googleapis.com/plus/v1/people/me/activities/public?maxResults=100&pageToken=' . $parsedBuffer['pageToken']);
-            $parsedBuffer = json_decode($data, true);
-
-            if ($parsedBuffer === null) {
-                $this->lastError = 'Failed to parse response';
-
-                return false;
-            }
-
-            if (isset($parsedBuffer['error'])) {
-                $this->lastError = $parsedBuffer['error']['message'];
-
-                return false;
-            }
-
-            $count = count($parsedBuffer['items']);
-
-            if ($count) {
-                $buffer = array_merge($buffer, $parsedBuffer['items']);
-                if (! $this->worker->isDryRun()) {
-                    // Send activities data to idOS API
-                    try {
-                        $this->worker->getLogger()->debug(
-                            sprintf(
-                                '[%s] Uploading activities',
-                                static::class
-                            )
-                        );
-                        $rawEndpoint->upsertOne(
-                            $this->worker->getSourceId(),
-                            'activities',
-                            $buffer
-                        );
-                    } catch (\Exception $exception) {
-                        $this->lastError = $exception->getMessage();
-
-                        return false;
-                    }
-                }
-            }
-        } while (! empty($parsedBuffer['items']));
 
         return true;
     }

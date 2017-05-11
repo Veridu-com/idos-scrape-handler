@@ -9,80 +9,141 @@ declare(strict_types = 1);
 namespace Cli\OAuth2\Google\GMail;
 
 use Cli\OAuth2\Google\AbstractGoogleThread;
+use Cli\Utils\Backoff;
 
 /**
  * Gmail Labels's Profile Scraper.
  */
 class Labels extends AbstractGoogleThread {
     /**
+     * Fetches gmail labels data.
+     *
+     * @throws \Exception
+     *
+     * @return \Generator
+     */
+    private function fetchAllLabels() : \Generator {
+        $service = $this->worker->getService();
+        $buffer  = [];
+        $backoff = new Backoff(
+            self::YIELD_ENABLED,
+            self::YIELD_INTERVAL,
+            self::YIELD_MULTIPLIER
+        );
+        try {
+            $fetch = $this->fetchAll(
+                'https://www.googleapis.com/gmail/v1/users/me/labels',
+                '',
+                'labels'
+            );
+
+            foreach ($fetch as $labels) {
+                foreach ($labels as $label) {
+                    $rawBuffer = $service->request(
+                        sprintf(
+                            'https://www.googleapis.com/gmail/v1/users/me/labels/%s',
+                            $label['id']
+                        )
+                    );
+
+                    $parsedBuffer = json_decode($rawBuffer, true);
+                    if ($parsedBuffer === null) {
+                        throw new \Exception('Failed to parse response');
+                    }
+
+                    if (isset($parsedBuffer['error_summary'])) {
+                        throw new \Exception($parsedBuffer['error_summary']);
+                    }
+
+                    $buffer[] = $parsedBuffer;
+                    if ($backoff->canYield()) {
+                        yield $buffer;
+                        $buffer = [];
+                    }
+                }
+            }
+
+            if (isset($buffer)) {
+                yield $buffer;
+            }
+        } catch (\Exception $exception) {
+            // ensure that even if an exception get thrown, all buffer is returned
+            if (count($buffer)) {
+                yield $buffer;
+
+                return;
+            }
+
+            throw $exception;
+        }
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+        $data   = [];
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            $buffer = [];
-            foreach ($this->fetchAll('https://www.googleapis.com/gmail/v1/users/me/labels', '') as $json) {
-                if ($json === false) {
-                    break;
-                }
+            // Retrieve data from Google's API
+            $fetch = $this->fetchAllLabels();
 
-                if (count($json)) {
-                    $buffer = array_merge($buffer, $json);
-                }
-            }
+            foreach ($fetch as $buffer) {
+                $numItems = count($buffer);
 
-            if (empty($buffer['labels'])) {
-                return false;
-            }
-
-            $labels = [];
-            foreach ($buffer['labels'] as $label) {
-                $data      = $this->worker->getService()->request("https://www.googleapis.com/gmail/v1/users/me/labels/{$label['id']}");
-                $jsonLabel = json_decode($data, true);
-
-                if ($jsonLabel === false) {
-                    $this->lastError = "Failed to fetch /me/labels/id ($this->lastError})";
-                    break;
-                }
-
-                $labels[] = $jsonLabel;
-            }
-
-            if ($this->worker->isDryRun()) {
-                $this->worker->getLogger()->debug(
+                $logger->debug(
                     sprintf(
-                        '[%s] Retrieved %d new items (%d total)',
+                        '[%s] Retrieved %d items',
                         static::class,
-                        count($json),
-                        count($labels)
+                        $numItems
                     )
                 );
 
-                return true;
+                if ($this->worker->isDryRun()) {
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Labels data',
+                            static::class
+                        ),
+                        $buffer
+                    );
+
+                    continue;
+                }
+
+                if ($numItems) {
+                    // Send labels to idOS API
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Sending data',
+                            static::class
+                        )
+                    );
+                    $data = array_merge($data, $buffer);
+                    $rawEndpoint->upsertOne(
+                        $this->worker->getSourceId(),
+                        'labels',
+                        $data
+                    );
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Data sent',
+                            static::class
+                        )
+                    );
+                }
             }
-
-            // Send post data to idOS API
-            $this->worker->getLogger()->debug(
-                sprintf(
-                    '[%s] Uploading %d new items (%d total)',
-                    static::class,
-                    count($json),
-                    count($labels)
-                )
-            );
-            $rawEndpoint->upsertOne(
-                $this->worker->getSourceId(),
-                'labels',
-                $labels
-            );
-
-            return true;
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
         }
+
+        return true;
     }
 }

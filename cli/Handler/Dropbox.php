@@ -10,6 +10,7 @@ namespace Cli\Handler;
 
 use Cli\OAuth2\Dropbox\Metadata;
 use Cli\OAuth2\Dropbox\Profile;
+use Cli\OAuth2\Dropbox\Space;
 
 /**
  * Dropbox Handler definition.
@@ -21,7 +22,8 @@ class Dropbox extends AbstractHandler {
     protected function poolThreads() : array {
         return [
             Metadata::class,
-            Profile::class
+            Profile::class,
+            Space::class
         ];
     }
 }

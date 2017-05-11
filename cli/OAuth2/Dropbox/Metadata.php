@@ -9,99 +9,157 @@ declare(strict_types = 1);
 namespace Cli\OAuth2\Dropbox;
 
 use Cli\Handler\AbstractHandlerThread;
+use Cli\Utils\Backoff;
 
 /**
  * Dropbox's metadata scraper.
  */
 class Metadata extends AbstractHandlerThread {
     /**
+     * Fetches dropbox metadata data.
+     *
+     * @throws \Exception
+     *
+     * @return \Generator
+     */
+    private function fetchAllMetadata() : \Generator {
+        $service = $this->worker->getService();
+        $buffer  = [];
+        $backoff = new Backoff(
+            self::YIELD_ENABLED,
+            self::YIELD_INTERVAL,
+            self::YIELD_MULTIPLIER
+        );
+        try {
+            $rawBuffer = $service->request(
+                'files/list_folder',
+                'POST',
+                json_encode(
+                    [
+                        'path'                                => '',
+                        'recursive'                           => false,
+                        'include_media_info'                  => true,
+                        'include_deleted'                     => false,
+                        'include_has_explicit_shared_members' => true
+                    ]
+                ),
+                ['Content-Type' => 'application/json']
+            );
+            while (true) {
+                $parsedBuffer = json_decode($rawBuffer, true);
+                if ($parsedBuffer === null) {
+                    throw new \Exception('Failed to parse response');
+                }
+
+                if (isset($parsedBuffer['error_summary'])) {
+                    throw new \Exception($parsedBuffer['error_summary']);
+                }
+
+                if (empty($parsedBuffer['entries'])) {
+                    break;
+                }
+
+                $buffer = array_merge($buffer, $parsedBuffer['entries']);
+                if ($backoff->canYield()) {
+                    yield $buffer;
+                    $buffer = [];
+                }
+
+                if ((empty($parsedBuffer['has_more'])) || (empty($parsedBuffer['cursor']))) {
+                    break;
+                }
+
+                $rawBuffer = $service->request(
+                    'files/list_folder/continue',
+                    'POST',
+                    json_encode(
+                        [
+                            'cursor' => $parsedBuffer['cursor']
+                        ]
+                    ),
+                    ['Content-Type' => 'application/json']
+                );
+            }
+
+            if (count($buffer)) {
+                yield $buffer;
+            }
+        } catch (\Exception $exception) {
+            // ensure that even if an exception get thrown, all buffer is returned
+            if (count($buffer)) {
+                yield $buffer;
+
+                return;
+            }
+
+            throw $exception;
+        }
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function execute() : bool {
+        $rawEndpoint = $this->worker->getSdk()
+            ->Profile($this->worker->getUserName())
+            ->Raw;
+
+        $logger = $this->worker->getLogger();
+        $data   = [];
+
         try {
-            $rawEndpoint = $this->worker->getSdk()
-                ->Profile($this->worker->getUserName())
-                ->Raw;
-            // Retrieve profile data from Dropbox's API
-            $rawBuffer = $this->worker->getService()->request('/metadata/auto/?&list=true&include_media_info=true&file_limit=25000');
+            // Retrieve data from Dropbox's API
+            $fetch = $this->fetchAllMetadata();
+
+            foreach ($fetch as $buffer) {
+                $numItems = count($buffer);
+
+                $logger->debug(
+                    sprintf(
+                        '[%s] Retrieved %d items',
+                        static::class,
+                        $numItems
+                    )
+                );
+
+                if ($this->worker->isDryRun()) {
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Metadata data',
+                            static::class
+                        ),
+                        $buffer
+                    );
+
+                    continue;
+                }
+
+                if ($numItems) {
+                    // Send metadata to idOS API
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Sending data',
+                            static::class
+                        )
+                    );
+                    $data = array_merge($data, $buffer);
+                    $rawEndpoint->upsertOne(
+                        $this->worker->getSourceId(),
+                        'metadata',
+                        $data
+                    );
+                    $logger->debug(
+                        sprintf(
+                            '[%s] Data sent',
+                            static::class
+                        )
+                    );
+                }
+            }
         } catch (\Exception $exception) {
             $this->lastError = $exception->getMessage();
 
             return false;
-        }
-
-        $parsedBuffer = json_decode($rawBuffer, true);
-        if ($parsedBuffer === null) {
-            $this->lastError = 'Failed to parse response';
-
-            return false;
-        }
-
-        if (isset($parsedBuffer['error'])) {
-            $this->lastError = $parsedBuffer['error'];
-
-            return false;
-        }
-
-        if (! isset($parsedBuffer['contents']) || count($parsedBuffer['contents']) == 0) {
-            $this->lastError = 'Root listing has no items';
-
-            return false;
-        }
-
-        $dirs = [];
-
-        foreach ($parsedBuffer['contents'] as $content) {
-            if ($content['is_dir']) {
-                $dirs[] = $content['path'];
-            }
-        }
-
-        $contents[] = ['path' => $parsedBuffer['path'], 'contents' => $parsedBuffer['contents']];
-
-        foreach ($dirs as $path) {
-            $rawPathBuffer    = $this->worker->getService()->request("/metadata/auto/$path?&list=true&include_media_info=true&file_limit=25000");
-            $parsedPathBuffer = json_decode($rawPathBuffer, true);
-
-            if (empty($parsedPathBuffer)) {
-                $this->lastError = 'Unknown error';
-
-                return false;
-            }
-
-            if (isset($parsedPathBuffer['error'])) {
-                $this->lastError = $parsedBuffer['error'];
-
-                return false;
-            }
-
-            if (isset($parsedPathBuffer['contents']) && count($parsedPathBuffer['contents']) != 0) {
-                $contents[] = [
-                    'path'     => $parsedPathBuffer['path'],
-                    'contents' => $parsedPathBuffer['contents']
-                ];
-            }
-        }
-
-        if (! $this->worker->isDryRun()) {
-            // Send metadata to idOS API
-            try {
-                $this->worker->getLogger()->debug(
-                    sprintf(
-                        '[%s] Uploading metadata',
-                        static::class
-                    )
-                );
-                $rawEndpoint->upsertOne(
-                    $this->worker->getSourceId(),
-                    'metadata',
-                    $contents
-                );
-            } catch (\Exception $exception) {
-                $this->lastError = $exception->getMessage();
-
-                return false;
-            }
         }
 
         return true;

@@ -14,7 +14,6 @@ use Cli\Utils\Logger;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger as Monolog;
 use Monolog\Processor\ProcessIdProcessor;
-use Monolog\Processor\UidProcessor;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -45,6 +44,12 @@ class Runner extends Command {
                 'l',
                 InputOption::VALUE_REQUIRED,
                 'Path to log file'
+            )
+            ->addOption(
+                'dryRun',
+                'r',
+                InputOption::VALUE_NONE,
+                'On dry run mode, no data is sent to idOS API'
             )
             ->addArgument(
                 'handlerPublicKey',
@@ -100,11 +105,6 @@ class Runner extends Command {
                 'apiVersion',
                 InputArgument::OPTIONAL,
                 'API Version'
-            )
-            ->addArgument(
-                'dryRun',
-                InputArgument::OPTIONAL,
-                'On dry run mode, no data is sent to idOS API'
             );
     }
 
@@ -120,7 +120,6 @@ class Runner extends Command {
         $logFile = $input->getOption('logFile') ?? 'php://stdout';
         $monolog = new Monolog('Scrape');
         $monolog
-            ->pushProcessor(new UidProcessor())
             ->pushProcessor(new ProcessIdProcessor())
             ->pushHandler(new StreamHandler($logFile, Monolog::DEBUG));
         $logger = new Logger($monolog);
@@ -180,7 +179,7 @@ class Runner extends Command {
             $input->getArgument('userName'),
             (int) $input->getArgument('sourceId'),
             $devMode,
-            $input->getArgument('dryRun') ? true : false
+            empty($input->getOption('dryRun')) ? false : true
         );
 
         $logger->debug('Runner completed');
