@@ -136,7 +136,7 @@ class Context extends \Worker {
      */
     public function getSdk() : SDK {
         if (! self::$sdk) {
-            self::$sdk = SDK::create($this->authToken);
+            self::$sdk = SDK::create($this->authToken, true);
 
             // development mode: disable ssl check
             if ($this->devMode) {
