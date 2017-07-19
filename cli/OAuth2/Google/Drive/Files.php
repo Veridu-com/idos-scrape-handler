@@ -44,33 +44,31 @@ class Files extends AbstractGoogleThread {
                     )
                 );
 
-                if ($this->worker->isDryRun()) {
-                    $logger->debug(
-                        sprintf(
-                            '[%s] Files data',
-                            static::class
-                        ),
-                        $buffer
-                    );
-
-                    continue;
-                }
-
                 if ($numItems) {
-                    // Send data to idOS API
                     foreach ($buffer as &$item) {
                         if (isset($item['exportLinks'])) {
                             unset($item['exportLinks']);
                         }
                     }
 
+                    $data = array_merge($data, $buffer);
+
+                    if ($this->worker->isDryRun()) {
+                        $this->worker->writeData(
+                            $data,
+                            static::class
+                        );
+
+                        continue;
+                    }
+
+                    // Send data to idOS API
                     $logger->debug(
                         sprintf(
                             '[%s] Sending data',
                             static::class
                         )
                     );
-                    $data = array_merge($data, $buffer);
                     $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'files',

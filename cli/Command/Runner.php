@@ -51,6 +51,12 @@ class Runner extends Command {
                 InputOption::VALUE_NONE,
                 'On dry run mode, no data is sent to idOS API'
             )
+            ->addOption(
+                'outputPath',
+                'o',
+                InputOption::VALUE_REQUIRED,
+                'Path to write data output to (only available on dry run mode!)'
+            )
             ->addArgument(
                 'handlerPublicKey',
                 InputArgument::REQUIRED,
@@ -139,6 +145,36 @@ class Runner extends Command {
             error_reporting(-1);
         }
 
+        // Output Path
+        $outputPath = null;
+        if (! empty($input->getOption('outputPath'))) {
+            $outputPath = $input->getOption('outputPath');
+            if (! is_dir($outputPath)) {
+                throw new \RuntimeException(
+                    sprintf(
+                        'Output path "%s" does not exist!',
+                        $outputPath
+                    )
+                );
+            }
+
+            if (! is_writable($outputPath)) {
+                throw new \RuntimeException(
+                    sprintf(
+                        'Output path "%s" is not writable!',
+                        $outputPath
+                    )
+                );
+            }
+
+            $logger->debug(
+                'Data output to path is activated',
+                [
+                    'path' => $outputPath
+                ]
+            );
+        }
+
         $handlerPublicKey  = $input->getArgument('handlerPublicKey');
         $handlerPrivateKey = $input->getArgument('handlerPrivateKey');
 
@@ -179,7 +215,8 @@ class Runner extends Command {
             $input->getArgument('userName'),
             (int) $input->getArgument('sourceId'),
             $devMode,
-            empty($input->getOption('dryRun')) ? false : true
+            empty($input->getOption('dryRun')) ? false : true,
+            $outputPath
         );
 
         $logger->debug('Runner completed');

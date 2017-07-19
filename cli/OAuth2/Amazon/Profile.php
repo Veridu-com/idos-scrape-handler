@@ -49,12 +49,9 @@ class Profile extends AbstractHandlerThread {
         );
 
         if ($this->worker->isDryRun()) {
-            $logger->debug(
-                sprintf(
-                    '[%s] Profile data',
-                    static::class
-                ),
-                $parsedBuffer
+            $this->worker->writeData(
+                $parsedBuffer,
+                static::class
             );
 
             return true;

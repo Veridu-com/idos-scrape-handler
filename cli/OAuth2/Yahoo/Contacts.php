@@ -82,19 +82,16 @@ class Contacts extends AbstractHandlerThread {
             )
         );
 
-        if ($this->worker->isDryRun()) {
-            $logger->debug(
-                sprintf(
-                    '[%s] Contacts data',
-                    static::class
-                ),
-                $parsedBuffer['contacts']['contact']
-            );
-
-            return true;
-        }
-
         if ($numItems) {
+            if ($this->worker->isDryRun()) {
+                $this->worker->writeData(
+                    $parsedBuffer['contacts']['contact'],
+                    static::class
+                );
+
+                return true;
+            }
+
             // Send data to idOS API
             try {
                 $logger->debug(

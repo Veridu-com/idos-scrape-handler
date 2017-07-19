@@ -41,19 +41,19 @@ class Friends extends AbstractTwitterThread {
                     )
                 );
 
-                if ($this->worker->isDryRun()) {
-                    $logger->debug(
-                        sprintf(
-                            '[%s] Friends data',
-                            static::class
-                        ),
-                        $buffer
-                    );
-
-                    continue;
-                }
 
                 if ($numItems) {
+                    $data = array_merge($data, $buffer);
+
+                    if ($this->worker->isDryRun()) {
+                        $this->worker->writeData(
+                            $data,
+                            static::class
+                        );
+
+                        continue;
+                    }
+
                     // Send data to idOS API
                     $logger->debug(
                         sprintf(
@@ -61,7 +61,6 @@ class Friends extends AbstractTwitterThread {
                             static::class
                         )
                     );
-                    $data = array_merge($data, $buffer);
                     $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'friends',
