@@ -43,19 +43,18 @@ class Circles extends AbstractGoogleThread {
                     )
                 );
 
-                if ($this->worker->isDryRun()) {
-                    $logger->debug(
-                        sprintf(
-                            '[%s] Circles data',
-                            static::class
-                        ),
-                        $buffer
-                    );
-
-                    continue;
-                }
-
                 if ($numItems) {
+                    $data = array_merge($data, $buffer);
+
+                    if ($this->worker->isDryRun()) {
+                        $this->worker->writeData(
+                            $data,
+                            static::class
+                        );
+
+                        continue;
+                    }
+
                     // Send data to idOS API
                     $logger->debug(
                         sprintf(
@@ -63,7 +62,6 @@ class Circles extends AbstractGoogleThread {
                             static::class
                         )
                     );
-                    $data = array_merge($data, $buffer);
                     $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'circles',

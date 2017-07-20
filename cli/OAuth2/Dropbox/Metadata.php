@@ -122,19 +122,18 @@ class Metadata extends AbstractHandlerThread {
                     )
                 );
 
-                if ($this->worker->isDryRun()) {
-                    $logger->debug(
-                        sprintf(
-                            '[%s] Metadata data',
-                            static::class
-                        ),
-                        $buffer
-                    );
-
-                    continue;
-                }
-
                 if ($numItems) {
+                    $data = array_merge($data, $buffer);
+
+                    if ($this->worker->isDryRun()) {
+                        $this->worker->writeData(
+                            $data,
+                            static::class
+                        );
+
+                        continue;
+                    }
+
                     // Send metadata to idOS API
                     $logger->debug(
                         sprintf(
@@ -142,7 +141,6 @@ class Metadata extends AbstractHandlerThread {
                             static::class
                         )
                     );
-                    $data = array_merge($data, $buffer);
                     $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'metadata',

@@ -113,19 +113,18 @@ class Activities extends AbstractGoogleThread {
                     )
                 );
 
-                if ($this->worker->isDryRun()) {
-                    $logger->debug(
-                        sprintf(
-                            '[%s] Activities data',
-                            static::class
-                        ),
-                        $buffer
-                    );
-
-                    continue;
-                }
-
                 if ($numItems) {
+                    $data = array_merge($data, $buffer);
+
+                    if ($this->worker->isDryRun()) {
+                        $this->worker->writeData(
+                            $data,
+                            static::class
+                        );
+
+                        continue;
+                    }
+
                     // Send activities to idOS API
                     $logger->debug(
                         sprintf(
@@ -133,7 +132,6 @@ class Activities extends AbstractGoogleThread {
                             static::class
                         )
                     );
-                    $data = array_merge($data, $buffer);
                     $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'activities',

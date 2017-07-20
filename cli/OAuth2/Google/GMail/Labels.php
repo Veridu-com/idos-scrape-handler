@@ -104,19 +104,18 @@ class Labels extends AbstractGoogleThread {
                     )
                 );
 
-                if ($this->worker->isDryRun()) {
-                    $logger->debug(
-                        sprintf(
-                            '[%s] Labels data',
-                            static::class
-                        ),
-                        $buffer
-                    );
-
-                    continue;
-                }
-
                 if ($numItems) {
+                    $data = array_merge($data, $buffer);
+
+                    if ($this->worker->isDryRun()) {
+                        $this->worker->writeData(
+                            $data,
+                            static::class
+                        );
+
+                        continue;
+                    }
+
                     // Send labels to idOS API
                     $logger->debug(
                         sprintf(
@@ -124,7 +123,6 @@ class Labels extends AbstractGoogleThread {
                             static::class
                         )
                     );
-                    $data = array_merge($data, $buffer);
                     $rawEndpoint->upsertOne(
                         $this->worker->getSourceId(),
                         'labels',

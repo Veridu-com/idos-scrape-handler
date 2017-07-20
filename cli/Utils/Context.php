@@ -61,6 +61,12 @@ class Context extends \Worker {
      * @var bool
      */
     private $dryRun;
+    /**
+     * Path to write data output to.
+     *
+     * @var string|null
+     */
+    private $outputPath;
 
     protected static $sdk;
 
@@ -74,6 +80,7 @@ class Context extends \Worker {
      * @param int                                    $sourceId
      * @param bool                                   $devMode
      * @param bool                                   $dryRun
+     * @param string|null                            $outputPath
      *
      * @return void
      */
@@ -84,15 +91,17 @@ class Context extends \Worker {
         string $userName,
         int $sourceId,
         bool $devMode = false,
-        bool $dryRun = false
+        bool $dryRun = false,
+        string $outputPath = null
     ) {
-        $this->logger    = $logger;
-        $this->authToken = $authToken;
-        $this->service   = $service;
-        $this->userName  = $userName;
-        $this->sourceId  = $sourceId;
-        $this->devMode   = $devMode;
-        $this->dryRun    = $dryRun;
+        $this->logger     = $logger;
+        $this->authToken  = $authToken;
+        $this->service    = $service;
+        $this->userName   = $userName;
+        $this->sourceId   = $sourceId;
+        $this->devMode    = $devMode;
+        $this->dryRun     = $dryRun;
+        $this->outputPath = rtrim($outputPath, \DIRECTORY_SEPARATOR);
 
     }
 
@@ -189,5 +198,23 @@ class Context extends \Worker {
      */
     public function isDryRun() : bool {
         return $this->dryRun;
+    }
+
+    /**
+     * Writes data to output path.
+     *
+     * @param array  $data
+     * @param string $className
+     *
+     * @return void
+     */
+    public function writeData(array $data, string $className) {
+        if ($this->outputPath === null) {
+            return;
+        }
+
+        $fileName = ltrim(str_replace('\\', '-', strtolower($className)), \DIRECTORY_SEPARATOR);
+        $filePath = sprintf('%s%s%s.json', $this->outputPath, \DIRECTORY_SEPARATOR, $fileName);
+        file_put_contents($filePath, json_encode($data), \LOCK_EX);
     }
 }

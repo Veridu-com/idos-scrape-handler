@@ -81,11 +81,12 @@ abstract class AbstractHandler implements HandlerInterface {
     /**
      * Handles Scrape process using a thread pool.
      *
-     * @param string $publicKey
-     * @param string $userName
-     * @param int    $sourceId
-     * @param bool   $devMode
-     * @param bool   $dryRun
+     * @param string      $publicKey
+     * @param string      $userName
+     * @param int         $sourceId
+     * @param bool        $devMode
+     * @param bool        $dryRun
+     * @param string|null $outputPath
      *
      * @return void
      */
@@ -94,7 +95,8 @@ abstract class AbstractHandler implements HandlerInterface {
         string $userName,
         int $sourceId,
         bool $devMode = false,
-        bool $dryRun = false
+        bool $dryRun = false,
+        string $outputPath = null
     ) {
         $this->logger->debug(
             sprintf(
@@ -113,7 +115,8 @@ abstract class AbstractHandler implements HandlerInterface {
                 $userName,
                 $sourceId,
                 $devMode,
-                $dryRun
+                $dryRun,
+                $outputPath
             ]
         );
 
